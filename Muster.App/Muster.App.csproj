@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!--
+      Overrides the repo-wide net10.0-windows. The toast APIs (ToastNotificationManagerCompat and
+      its activation args) only exist in the package's Windows-targeted assets, which NuGet will
+      not pick without a Windows SDK version here. Only this project needs it; Muster.Core stays
+      plain net10.0.
+    -->
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <!-- Only for the in-box NotifyIcon: WPF has no tray API and Shell_NotifyIcon by hand is
+         a lot more code for the same result. No WinForms UI is ever shown. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>Muster</AssemblyName>
+    <RootNamespace>Muster.App</RootNamespace>
+    <!-- Required by LibraryImport's source-generated marshalling. No hand-written unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>..\assets\muster.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!--
+    UseWindowsForms adds global usings that collide with WPF across the whole project
+    (Application, Panel, Color, KeyEventArgs). Drop them: only Tray/TrayIcon.cs wants WinForms,
+    and it imports what it needs explicitly.
+  -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      One .ico per IconSet member, all copied so the choice can change without a rebuild. The
+      ApplicationIcon above is the exe's own icon and is baked in at compile time, so it stays on
+      the default whatever the setting says - see AppIcons.
+    -->
+    <Content Include="../assets/muster.ico" Link="Assets/muster.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../assets/muster-eucalypt.ico" Link="Assets/muster-eucalypt.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../assets/muster-inverted.ico" Link="Assets/muster-inverted.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../assets/muster-ochre.ico" Link="Assets/muster-ochre.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../assets/muster-bone.ico" Link="Assets/muster-bone.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../assets/muster-rimmed.ico" Link="Assets/muster-rimmed.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../assets/muster-hivis.ico" Link="Assets/muster-hivis.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../assets/muster-clay.ico" Link="Assets/muster-clay.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/inject/bridge.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets/inject/probe-presence.js" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="CommunityToolkit.WinUI.Notifications" Version="7.1.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
+    <PackageReference Include="Velopack" Version="1.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Muster.Core\Muster.Core.csproj" />
+    <ProjectReference Include="..\Muster.Graph\Muster.Graph.csproj" />
+  </ItemGroup>
+
+</Project>

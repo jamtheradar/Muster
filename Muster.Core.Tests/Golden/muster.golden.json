@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "workspaces": [
+    {
+      "id": "datebyte",
+      "name": "DataByte",
+      "accent": "#2D7D9A",
+      "services": [
+        {
+          "id": "teams-datebyte",
+          "name": "Teams",
+          "kind": "teams",
+          "url": "https://teams.cloud.microsoft/",
+          "keepAlive": true,
+          "notificationsEnabled": true,
+          "muted": false,
+          "presence": {
+            "strategy": "graph",
+            "userPrincipalName": "james@databyte.example",
+            "tenantId": "11111111-1111-1111-1111-111111111111"
+          }
+        },
+        {
+          "id": "azure-datebyte",
+          "name": "Azure",
+          "kind": "generic",
+          "url": "https://portal.azure.com/",
+          "keepAlive": false,
+          "notificationsEnabled": false,
+          "muted": false
+        }
+      ]
+    },
+    {
+      "id": "fabrikam",
+      "name": "Fabrikam",
+      "accent": "#B5651D",
+      "profileName": "ws-fabrikam",
+      "services": [
+        {
+          "id": "teams-fabrikam",
+          "name": "Teams",
+          "kind": "teams",
+          "url": "https://teams.cloud.microsoft/",
+          "keepAlive": true,
+          "notificationsEnabled": true,
+          "muted": false,
+          "presence": {
+            "strategy": "none"
+          }
+        }
+      ]
+    }
+  ],
+  "presence": {
+    "enabled": true,
+    "callDetectDelaySeconds": 3,
+    "callClearDelaySeconds": 10,
+    "expirationDuration": "PT2H",
+    "clientId": "22222222-2222-2222-2222-222222222222"
+  },
+  "notifications": {
+    "toastsEnabled": true,
+    "historyLimit": 200
+  },
+  "appearance": {
+    "iconSet": "eucalypt"
+  },
+  "links": {
+    "external": "always"
+  },
+  "suspension": {
+    "enabled": true,
+    "idleMinutes": 5
+  },
+  "logging": {
+    "level": "debug",
+    "retentionDays": 30,
+    "directory": "D:\\Muster\\logs"
+  }
+}

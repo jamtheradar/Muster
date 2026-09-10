@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="32" height="32" role="img" aria-label="Muster">
+  <title>Muster</title>
+  <rect x="8" y="8" width="240" height="240" rx="52" ry="52" fill="#1C2B31"/>
+  <g fill="none" stroke="#E8E4DA" stroke-width="40" stroke-linecap="butt">
+    <path d="M 50.30 134.80 A 78 78 0 0 1 95.03 57.31"/>
+    <path d="M 134.80 50.30 A 78 78 0 0 1 203.35 107.81"/>
+    <path d="M 203.35 148.19 A 78 78 0 0 1 121.20 205.70"/>
+  </g>
+  <circle cx="128" cy="128" r="30" fill="#C9871C"/>
+</svg>

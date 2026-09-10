@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Deliberately NOT net10.0-windows. Muster.Core must never reference WPF or WebView2, and
+      the flat target framework makes that a compile error rather than a code review.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,193 @@
+<UserControl x:Class="Muster.App.Views.Controls.ColorPickerField"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             FontFamily="Segoe UI"
+             d:DesignWidth="300">
+
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="PickerBack" Color="#FF1D1D22" />
+        <SolidColorBrush x:Key="PickerPanel" Color="#FF232329" />
+        <SolidColorBrush x:Key="PickerBorder" Color="#FF44444F" />
+        <SolidColorBrush x:Key="PickerText" Color="#FFD6D6DB" />
+        <SolidColorBrush x:Key="PickerSubtle" Color="#FF83838C" />
+
+        <!-- The closed state: swatch, hex, chevron. Clicking it drops the panel. -->
+        <Style x:Key="ToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Root"
+                                Background="{StaticResource PickerBack}"
+                                BorderBrush="{StaticResource PickerBorder}"
+                                BorderThickness="1"
+                                CornerRadius="4"
+                                Padding="5">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF6A6A78" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF2D7D9A" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF2D7D9A" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ChannelSlider" TargetType="Slider">
+            <Setter Property="Minimum" Value="0" />
+            <Setter Property="Maximum" Value="255" />
+            <Setter Property="SmallChange" Value="1" />
+            <Setter Property="LargeChange" Value="16" />
+            <Setter Property="IsSnapToTickEnabled" Value="True" />
+            <Setter Property="TickFrequency" Value="1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="6,2" />
+        </Style>
+
+        <Style x:Key="ChannelLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource PickerSubtle}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Width" Value="14" />
+        </Style>
+
+        <Style x:Key="ChannelValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource PickerText}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Width" Value="26" />
+            <Setter Property="TextAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <ToggleButton x:Name="Toggle"
+                      Style="{StaticResource ToggleStyle}"
+                      AutomationProperties.Name="Choose colour">
+            <DockPanel LastChildFill="True">
+                <TextBlock DockPanel.Dock="Right"
+                           Margin="6,0,3,0"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource PickerSubtle}"
+                           FontSize="9"
+                           Text="&#x25BC;" />
+                <Border x:Name="SwatchPreview"
+                        DockPanel.Dock="Left"
+                        Width="34"
+                        Height="18"
+                        CornerRadius="3"
+                        BorderBrush="#FF55555F"
+                        BorderThickness="1" />
+                <TextBlock x:Name="HexLabel"
+                           Margin="9,0,0,0"
+                           VerticalAlignment="Center"
+                           Foreground="{StaticResource PickerText}"
+                           FontSize="12"
+                           FontFamily="Consolas, Cascadia Mono, Courier New" />
+            </DockPanel>
+        </ToggleButton>
+
+        <Popup x:Name="DropDown"
+               PlacementTarget="{Binding ElementName=Toggle}"
+               Placement="Bottom"
+               VerticalOffset="3"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               PopupAnimation="Fade"
+               IsOpen="{Binding IsChecked, ElementName=Toggle, Mode=TwoWay}">
+            <Border Background="{StaticResource PickerPanel}"
+                    BorderBrush="{StaticResource PickerBorder}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="12"
+                    Margin="6"
+                    Width="272">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.5" Color="Black" />
+                </Border.Effect>
+
+                <StackPanel>
+                    <TextBlock Text="PRESETS"
+                               Foreground="{StaticResource PickerSubtle}"
+                               FontSize="10"
+                               FontWeight="Bold"
+                               Margin="0,0,0,6" />
+
+                    <UniformGrid x:Name="Swatches" Columns="8" />
+
+                    <Rectangle Height="1" Fill="#FF33333B" Margin="0,12,0,8" />
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Style="{StaticResource ChannelLabel}" Text="R" />
+                        <Slider x:Name="Red" Grid.Row="0" Grid.Column="1" Style="{StaticResource ChannelSlider}"
+                                AutomationProperties.Name="Red" ValueChanged="OnChannelChanged" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Style="{StaticResource ChannelValue}"
+                                   Text="{Binding Value, ElementName=Red, StringFormat={}{0:0}}" />
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Style="{StaticResource ChannelLabel}" Text="G" />
+                        <Slider x:Name="Green" Grid.Row="1" Grid.Column="1" Style="{StaticResource ChannelSlider}"
+                                AutomationProperties.Name="Green" ValueChanged="OnChannelChanged" />
+                        <TextBlock Grid.Row="1" Grid.Column="2" Style="{StaticResource ChannelValue}"
+                                   Text="{Binding Value, ElementName=Green, StringFormat={}{0:0}}" />
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Style="{StaticResource ChannelLabel}" Text="B" />
+                        <Slider x:Name="Blue" Grid.Row="2" Grid.Column="1" Style="{StaticResource ChannelSlider}"
+                                AutomationProperties.Name="Blue" ValueChanged="OnChannelChanged" />
+                        <TextBlock Grid.Row="2" Grid.Column="2" Style="{StaticResource ChannelValue}"
+                                   Text="{Binding Value, ElementName=Blue, StringFormat={}{0:0}}" />
+                    </Grid>
+
+                    <Rectangle Height="1" Fill="#FF33333B" Margin="0,8,0,10" />
+
+                    <DockPanel LastChildFill="True">
+                        <Border x:Name="Preview"
+                                DockPanel.Dock="Left"
+                                Width="44"
+                                Height="26"
+                                CornerRadius="4"
+                                BorderBrush="#FF55555F"
+                                BorderThickness="1" />
+                        <TextBox x:Name="HexBox"
+                                 Margin="8,0,0,0"
+                                 MaxLength="7"
+                                 Background="{StaticResource PickerBack}"
+                                 Foreground="{StaticResource PickerText}"
+                                 CaretBrush="{StaticResource PickerText}"
+                                 BorderBrush="{StaticResource PickerBorder}"
+                                 BorderThickness="1"
+                                 Padding="6,4"
+                                 FontSize="12"
+                                 FontFamily="Consolas, Cascadia Mono, Courier New"
+                                 VerticalContentAlignment="Center"
+                                 AutomationProperties.Name="Hex colour"
+                                 TextChanged="OnHexBoxChanged" />
+                    </DockPanel>
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

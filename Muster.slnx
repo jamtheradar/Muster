@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Muster.App/Muster.App.csproj" />
+  <Project Path="Muster.Core.Tests/Muster.Core.Tests.csproj" />
+  <Project Path="Muster.Core/Muster.Core.csproj" />
+  <Project Path="Muster.Graph/Muster.Graph.csproj" />
+</Solution>

@@ -1,0 +1,32 @@
+<Window x:Class="Muster.App.Views.PopupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        mc:Ignorable="d"
+        Title="Muster"
+        Width="1000"
+        Height="700"
+        MinWidth="360"
+        MinHeight="280"
+        ShowInTaskbar="True"
+        Background="#FF17171A"
+        TextOptions.TextFormattingMode="Display">
+
+    <!-- Ordinary window chrome on purpose: the whole point of this window is that it can be
+         dragged to another monitor, maximised and resized like any other. The accent strip is the
+         same wrong-tenant guard the shell uses, because a popped-out meeting is exactly where
+         losing track of which identity you are on would matter most. -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="3" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border x:Name="AccentStrip" Grid.Row="0" Background="#FF2D7D9A" />
+
+        <!-- The session's WebView2 is added here at runtime. It must be on screen before
+             EnsureCoreWebView2Async runs, so this window is shown before the session is created. -->
+        <Grid x:Name="SessionHost" Grid.Row="1" />
+    </Grid>
+</Window>

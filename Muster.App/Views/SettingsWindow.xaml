@@ -1,0 +1,1256 @@
+<Window x:Class="Muster.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:vm="clr-namespace:Muster.App.ViewModels"
+        xmlns:views="clr-namespace:Muster.App.Views"
+        xmlns:controls="clr-namespace:Muster.App.Views.Controls"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+        Title="Muster · Settings"
+        Width="1080"
+        Height="740"
+        MinWidth="880"
+        MinHeight="600"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="#FF17171A"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+        <views:NullToVisibilityConverter x:Key="NullToCollapsed" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisible" />
+        <views:NotBooleanConverter x:Key="NotBool" />
+
+        <SolidColorBrush x:Key="Chrome" Color="#FF232329" />
+        <SolidColorBrush x:Key="Rail" Color="#FF141417" />
+        <SolidColorBrush x:Key="Panel" Color="#FF1E1E23" />
+        <SolidColorBrush x:Key="ChromeText" Color="#FFD6D6DB" />
+        <SolidColorBrush x:Key="SubtleText" Color="#FF83838C" />
+        <SolidColorBrush x:Key="FieldBack" Color="#FF1D1D22" />
+        <SolidColorBrush x:Key="FieldBorder" Color="#FF44444F" />
+        <SolidColorBrush x:Key="Danger" Color="#FFE5484D" />
+        <SolidColorBrush x:Key="Caution" Color="#FFE0A020" />
+
+        <Style x:Key="ChromeButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF33333B" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ChromeButton}">
+            <Setter Property="Background" Value="#FF2D7D9A" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="18,6" />
+        </Style>
+
+        <!-- Small square button for the add/remove/reorder strips. -->
+        <Style x:Key="MicroButton" TargetType="Button" BasedOn="{StaticResource ChromeButton}">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Margin" Value="0,0,3,0" />
+        </Style>
+
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,3" />
+        </Style>
+
+        <Style x:Key="SectionBlurb" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource SubtleText}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,10,0,3" />
+        </Style>
+
+        <Style x:Key="Hint" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource SubtleText}" />
+            <Setter Property="FontSize" Value="10.5" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,3,0,0" />
+        </Style>
+
+        <Style x:Key="Field" TargetType="TextBox">
+            <Setter Property="Background" Value="{StaticResource FieldBack}" />
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="CaretBrush" Value="{StaticResource ChromeText}" />
+            <Setter Property="BorderBrush" Value="{StaticResource FieldBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="7,5" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+
+        <Style x:Key="ReadOnlyField" TargetType="TextBox" BasedOn="{StaticResource Field}">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="Foreground" Value="{StaticResource SubtleText}" />
+            <Setter Property="FontFamily" Value="Consolas, Cascadia Mono, Courier New" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+
+        <Style x:Key="Check" TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Margin" Value="0,9,0,0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <!--
+            The stock ComboBox template is the light system theme and reads as a hole punched in
+            a dark window. Templated rather than restyled: setting Background alone leaves the
+            drop-down button drawing its own chrome.
+        -->
+        <Style x:Key="PickerItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Root" Background="Transparent" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF35353E" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="Picker" TargetType="ComboBox">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource PickerItem}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="Toggle"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          Cursor="Hand"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Face"
+                                                Background="{StaticResource FieldBack}"
+                                                BorderBrush="{StaticResource FieldBorder}"
+                                                BorderThickness="1"
+                                                CornerRadius="3">
+                                            <Path x:Name="Arrow"
+                                                  HorizontalAlignment="Right"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,9,0"
+                                                  Data="M0,0 L8,0 L4,5 Z"
+                                                  Fill="{StaticResource SubtleText}" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Face" Property="BorderBrush" Value="#FF5C5C6B" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <ContentPresenter Margin="{TemplateBinding Padding}"
+                                              HorizontalAlignment="Left"
+                                              VerticalAlignment="Center"
+                                              IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" />
+
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   Placement="Bottom"
+                                   Focusable="False"
+                                   PopupAnimation="Fade"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}">
+                                <Border Background="#FF23232A"
+                                        BorderBrush="{StaticResource FieldBorder}"
+                                        BorderThickness="1"
+                                        CornerRadius="3"
+                                        Margin="0,2,0,0"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <ScrollViewer>
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Left rail of the settings window: one row per section. -->
+        <Style x:Key="SectionTab" TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border x:Name="Root"
+                                Background="Transparent"
+                                Padding="16,9"
+                                Margin="6,1"
+                                CornerRadius="5">
+                            <ContentPresenter ContentSource="Header" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF26262D" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF35353E" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TabHeaderText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+
+        <!-- Master lists: workspaces, services, log files. -->
+        <Style x:Key="EditorList" TargetType="ListBox">
+            <Setter Property="Background" Value="{StaticResource FieldBack}" />
+            <Setter Property="BorderBrush" Value="{StaticResource FieldBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="0,3" />
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        </Style>
+
+        <Style x:Key="EditorListItem" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Root" Background="Transparent" Padding="9,6" Margin="3,1" CornerRadius="4">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF2C2C33" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF35353E" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            The icon set picker. Offered as the artwork rather than as a list of names: a
+            colourway is not something a name conveys, and the previews are decoded from the same
+            .ico files the tray and the windows draw from, so what is shown is what is applied.
+        -->
+        <Style x:Key="IconChoiceList" TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,4,0,0" />
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        </Style>
+
+        <!-- Border thickness is constant and only its colour changes, or selecting a tile would
+             nudge the mark inside it by a pixel. -->
+        <Style x:Key="IconChoiceItem" TargetType="ListBoxItem">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Root"
+                                Background="{StaticResource FieldBack}"
+                                BorderBrush="{StaticResource FieldBorder}"
+                                BorderThickness="2"
+                                CornerRadius="6"
+                                Padding="14,12"
+                                Margin="0,0,10,10">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF5C5C6B" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF26262D" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="#FF2D7D9A" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Shown instead of the editor when muster.json could not be read at all. -->
+        <Border Grid.Row="0"
+                Padding="28"
+                Visibility="{Binding LoadError, Converter={StaticResource NullToCollapsed}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="620">
+                <TextBlock Text="The config could not be read"
+                           Foreground="{StaticResource Danger}"
+                           FontSize="16"
+                           FontWeight="SemiBold" />
+                <TextBlock Style="{StaticResource Hint}"
+                           Margin="0,8,0,0"
+                           Text="Nothing here can be edited until the file loads, and Muster will not overwrite it. Fix it in a text editor, then reopen settings." />
+                <TextBox Style="{StaticResource ReadOnlyField}"
+                         Margin="0,14,0,0"
+                         MaxHeight="220"
+                         VerticalScrollBarVisibility="Auto"
+                         Text="{Binding LoadError, Mode=OneWay}" />
+                <Button Style="{StaticResource ChromeButton}"
+                        Margin="0,14,0,0"
+                        HorizontalAlignment="Left"
+                        Content="Show muster.json in Explorer"
+                        Command="{Binding OpenConfigFileCommand}" />
+            </StackPanel>
+        </Border>
+
+        <TabControl x:Name="Sections"
+                    Grid.Row="0"
+                    TabStripPlacement="Left"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="0"
+                    Visibility="{Binding IsEditable, Converter={StaticResource BoolToVisible}}">
+
+            <!-- ================= workspaces ================= -->
+            <TabItem Style="{StaticResource SectionTab}">
+                <TabItem.Header>
+                    <TextBlock Style="{StaticResource TabHeaderText}" Text="Workspaces" />
+                </TabItem.Header>
+
+                <Border Background="{StaticResource Panel}" Padding="20">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="215" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+
+                        <DockPanel Grid.Column="0" Margin="0,0,18,0">
+                            <TextBlock DockPanel.Dock="Top" Style="{StaticResource SectionHeader}" Text="Workspaces" />
+                            <TextBlock DockPanel.Dock="Top"
+                                       Style="{StaticResource SectionBlurb}"
+                                       Text="One per tenant. Each gets its own WebView2 profile, so sign-ins never mix." />
+
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                                <Button Style="{StaticResource MicroButton}" Content="+" ToolTip="Add workspace"
+                                        AutomationProperties.Name="Add workspace"
+                                        Command="{Binding AddWorkspaceCommand}" />
+                                <Button Style="{StaticResource MicroButton}" Content="&#x2212;" ToolTip="Remove workspace"
+                                        AutomationProperties.Name="Remove workspace"
+                                        Command="{Binding RemoveWorkspaceCommand}" />
+                                <Button Style="{StaticResource MicroButton}" Content="&#x2191;" ToolTip="Move up"
+                                        AutomationProperties.Name="Move workspace up"
+                                        Command="{Binding MoveWorkspaceUpCommand}" />
+                                <Button Style="{StaticResource MicroButton}" Content="&#x2193;" ToolTip="Move down"
+                                        AutomationProperties.Name="Move workspace down"
+                                        Command="{Binding MoveWorkspaceDownCommand}" />
+                            </StackPanel>
+
+                            <ListBox Style="{StaticResource EditorList}"
+                                     ItemContainerStyle="{StaticResource EditorListItem}"
+                                     ItemsSource="{Binding Workspaces}"
+                                     SelectedItem="{Binding SelectedWorkspace, Mode=TwoWay}"
+                                     AutomationProperties.Name="Workspaces">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="12" Height="12" CornerRadius="3"
+                                                    Margin="0,0,8,0"
+                                                    VerticalAlignment="Center"
+                                                    BorderBrush="#FF44444F"
+                                                    BorderThickness="1"
+                                                    Background="{Binding AccentBrush}" />
+                                            <TextBlock Text="{Binding Label}"
+                                                       FontSize="12"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+
+                        <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
+                            <StackPanel DataContext="{Binding SelectedWorkspace}"
+                                        Visibility="{Binding SelectedWorkspace,
+                                                             RelativeSource={RelativeSource AncestorType=Window},
+                                                             Converter={StaticResource NullToCollapsed}}">
+
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Id" Margin="0,0,0,3" />
+                                <TextBox Style="{StaticResource Field}" Text="{Binding Id, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Workspace id" />
+                                <TextBlock Style="{StaticResource Hint}"
+                                           Text="Letters, digits, dash or underscore. It names the profile folder, so changing it signs the workspace out." />
+
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Name" />
+                                <TextBox Style="{StaticResource Field}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Workspace name" />
+
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Rail abbreviation" />
+                                <DockPanel>
+                                    <!-- The rail tile as it will actually look, initials fallback included. -->
+                                    <Border DockPanel.Dock="Right"
+                                            Width="34"
+                                            Height="34"
+                                            Margin="10,0,0,0"
+                                            CornerRadius="11"
+                                            Background="{Binding AccentBrush}">
+                                        <TextBlock Text="{Binding RailLabel}"
+                                                   Foreground="White"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                    <TextBox Style="{StaticResource Field}"
+                                             MaxLength="3"
+                                             VerticalAlignment="Center"
+                                             Text="{Binding Abbreviation, UpdateSourceTrigger=PropertyChanged}"
+                                             AutomationProperties.Name="Workspace rail abbreviation" />
+                                </DockPanel>
+                                <TextBlock Style="{StaticResource Hint}"
+                                           Text="Up to three characters on the workspace tile in the left rail. Leave it blank to use initials from the name, which stop being useful once two tenants start with the same letter." />
+
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Accent" />
+                                <controls:ColorPickerField HorizontalAlignment="Left"
+                                                           Width="190"
+                                                           Hex="{Binding Accent, UpdateSourceTrigger=PropertyChanged}"
+                                                           AutomationProperties.Name="Workspace accent colour" />
+                                <TextBlock Style="{StaticResource Hint}"
+                                           Text="The strip along the top of the window and the rail tile. It is the wrong-tenant guard, so keep the workspaces visibly different." />
+
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Profile name override" />
+                                <TextBox Style="{StaticResource Field}" Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Workspace profile name" />
+                                <TextBlock Style="{StaticResource Hint}" Text="{Binding ProfileHint}" />
+
+                                <TextBlock Style="{StaticResource FieldLabel}" Text="Extra permission origins" />
+                                <TextBox Style="{StaticResource Field}"
+                                         Height="62"
+                                         AcceptsReturn="True"
+                                         TextWrapping="NoWrap"
+                                         VerticalScrollBarVisibility="Auto"
+                                         Text="{Binding PermissionOriginsText, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Extra permission origins" />
+                                <TextBlock Style="{StaticResource Hint}"
+                                           Text="One host suffix per line. These skip the browser permission prompts &#x2014; microphone, camera, notifications, multi-display window management, clipboard paste, local fonts, autoplay &#x2014; on top of the built-in Microsoft origins. contoso.com also matches meet.contoso.com." />
+
+                                <Separator Margin="0,20,0,10" Background="#FF33333B" />
+
+                                <TextBlock Style="{StaticResource SectionHeader}" Text="Services" />
+                                <TextBlock Style="{StaticResource SectionBlurb}"
+                                           Text="Pinned tabs in this workspace. Services are config, not code: a URL, a title to parse and notifications to intercept." />
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="185" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <DockPanel Grid.Column="0" Margin="0,0,16,0">
+                                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                                            <Button Style="{StaticResource MicroButton}" Content="+" ToolTip="Add service"
+                                                    AutomationProperties.Name="Add service"
+                                                    Command="{Binding AddServiceCommand}" />
+                                            <Button Style="{StaticResource MicroButton}" Content="&#x2212;" ToolTip="Remove service"
+                                                    AutomationProperties.Name="Remove service"
+                                                    Command="{Binding RemoveServiceCommand}" />
+                                            <Button Style="{StaticResource MicroButton}" Content="&#x2191;" ToolTip="Move up"
+                                                    AutomationProperties.Name="Move service up"
+                                                    Command="{Binding MoveServiceUpCommand}" />
+                                            <Button Style="{StaticResource MicroButton}" Content="&#x2193;" ToolTip="Move down"
+                                                    AutomationProperties.Name="Move service down"
+                                                    Command="{Binding MoveServiceDownCommand}" />
+                                        </StackPanel>
+
+                                        <ListBox Style="{StaticResource EditorList}"
+                                                 ItemContainerStyle="{StaticResource EditorListItem}"
+                                                 MinHeight="150"
+                                                 ItemsSource="{Binding Services}"
+                                                 SelectedItem="{Binding SelectedService, Mode=TwoWay}"
+                                                 AutomationProperties.Name="Services">
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Label}" FontSize="12"
+                                                                   TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Text="{Binding Kind}" FontSize="10"
+                                                                   Foreground="{StaticResource SubtleText}" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </DockPanel>
+
+                                    <StackPanel Grid.Column="1"
+                                                DataContext="{Binding SelectedService}"
+                                                Visibility="{Binding SelectedWorkspace.SelectedService,
+                                                                     RelativeSource={RelativeSource AncestorType=Window},
+                                                                     Converter={StaticResource NullToCollapsed}}">
+
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Id" Margin="0,0,0,3" />
+                                        <TextBox Style="{StaticResource Field}" Text="{Binding Id, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Service id" />
+                                        <TextBlock Style="{StaticResource Hint}"
+                                                   Text="Unique across every workspace, not just this one: it keys the session and the notification history." />
+
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Name" />
+                                        <TextBox Style="{StaticResource Field}" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Service name" />
+
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="URL" />
+                                        <TextBox Style="{StaticResource Field}" Text="{Binding Url, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Service URL" />
+                                        <TextBlock Style="{StaticResource Hint}"
+                                                   Text="http or https only. Teams lives on teams.cloud.microsoft; the old teams.microsoft.com host only redirects." />
+
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Kind" />
+                                        <ComboBox Style="{StaticResource Picker}"
+                                                  HorizontalAlignment="Left"
+                                                  MinWidth="170"
+                                                  ItemsSource="{x:Static vm:ServiceEditorViewModel.Kinds}"
+                                                  SelectedItem="{Binding Kind, Mode=TwoWay}"
+                                                  AutomationProperties.Name="Service kind" />
+                                        <TextBlock Style="{StaticResource Hint}"
+                                                   Text="Teams adds call detection and presence. Everything else is generic, and that is deliberate." />
+
+                                        <TextBlock Style="{StaticResource FieldLabel}" Text="Profile name override" />
+                                        <TextBox Style="{StaticResource Field}" Text="{Binding ProfileName, UpdateSourceTrigger=PropertyChanged}"
+                                                 AutomationProperties.Name="Service profile name" />
+                                        <TextBlock Style="{StaticResource Hint}"
+                                                   Text="Blank uses the workspace profile. Set it only for two identities in one tenant." />
+
+                                        <CheckBox Style="{StaticResource Check}"
+                                                  Content="Keep alive"
+                                                  IsChecked="{Binding KeepAlive, Mode=TwoWay}" />
+                                        <TextBlock Style="{StaticResource Hint}"
+                                                   Text="Loaded at launch rather than on first visit, and never suspended. Needed for badges and notifications to be live from the start." />
+
+                                        <CheckBox Style="{StaticResource Check}"
+                                                  Content="Notifications enabled"
+                                                  IsChecked="{Binding NotificationsEnabled, Mode=TwoWay}" />
+                                        <CheckBox Style="{StaticResource Check}"
+                                                  Content="Muted"
+                                                  IsChecked="{Binding Muted, Mode=TwoWay}" />
+                                        <TextBlock Style="{StaticResource Hint}" Text="{Binding BadgeBehaviourText}" />
+
+                                        <Border Margin="0,16,0,0"
+                                                Padding="14,10,14,14"
+                                                CornerRadius="5"
+                                                Background="#FF23232A"
+                                                BorderBrush="#FF33333B"
+                                                BorderThickness="1"
+                                                IsEnabled="{Binding IsTeams}">
+                                            <StackPanel>
+                                                <TextBlock Style="{StaticResource SectionHeader}"
+                                                           FontSize="12"
+                                                           Text="Presence account" />
+                                                <TextBlock Style="{StaticResource Hint}"
+                                                           Margin="0,0,0,4"
+                                                           Text="Teams services only. Without a block here the account does not exist as far as presence is concerned, whatever presence.enabled says." />
+
+                                                <CheckBox Style="{StaticResource Check}"
+                                                          Content="Configure presence for this account"
+                                                          IsChecked="{Binding PresenceConfigured, Mode=TwoWay}" />
+
+                                                <StackPanel IsEnabled="{Binding PresenceConfigured}">
+                                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Strategy" />
+                                                    <ComboBox Style="{StaticResource Picker}"
+                                                              HorizontalAlignment="Left"
+                                                              MinWidth="170"
+                                                              ItemsSource="{x:Static vm:ServiceEditorViewModel.Strategies}"
+                                                              SelectedItem="{Binding PresenceStrategy, Mode=TwoWay}"
+                                                              AutomationProperties.Name="Presence strategy" />
+
+                                                    <TextBlock Style="{StaticResource FieldLabel}" Text="User principal name" />
+                                                    <TextBox Style="{StaticResource Field}"
+                                                             Text="{Binding UserPrincipalName, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.Name="User principal name" />
+
+                                                    <TextBlock Style="{StaticResource FieldLabel}" Text="Tenant id" />
+                                                    <TextBox Style="{StaticResource Field}"
+                                                             Text="{Binding TenantId, UpdateSourceTrigger=PropertyChanged}"
+                                                             AutomationProperties.Name="Tenant id" />
+                                                    <TextBlock Style="{StaticResource Hint}"
+                                                              Text="Both are required by the graph strategy, and ignored by page, which acts as whoever the tab is signed in as. Never put a token or secret in the config: graph keeps them in the MSAL cache, page never stores one at all." />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </TabItem>
+
+            <!-- ================= presence ================= -->
+            <TabItem Style="{StaticResource SectionTab}">
+                <TabItem.Header>
+                    <TextBlock Style="{StaticResource TabHeaderText}" Text="Presence" />
+                </TabItem.Header>
+
+                <Border Background="{StaticResource Panel}" Padding="24">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Presence" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Call detection watches microphone acquisition, never the Teams DOM. A session is in a call while it holds at least one audio track." />
+
+                            <Border Padding="13,10"
+                                    CornerRadius="5"
+                                    Background="#26E0A020"
+                                    BorderBrush="#55E0A020"
+                                    BorderThickness="1">
+                                <TextBlock Foreground="#FFE9C583"
+                                           FontSize="11"
+                                           TextWrapping="Wrap"
+                                           Text="Presence writes change status that people in client tenants can see. With this on, a call in one tenant shows you Busy in every other one, and the tray item &quot;Force Busy everywhere&quot; (Ctrl+Alt+B) is the manual escape hatch." />
+                            </Border>
+
+                            <CheckBox Style="{StaticResource Check}"
+                                      Margin="0,16,0,0"
+                                      Content="Enable presence sync"
+                                      IsChecked="{Binding PresenceEnabled, Mode=TwoWay}" />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Call detect delay (seconds)" />
+                            <TextBox Style="{StaticResource Field}"
+                                     Width="110"
+                                     HorizontalAlignment="Left"
+                                     Text="{Binding CallDetectDelay, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Call detect delay in seconds" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Hold the microphone this long before declaring a call. Kills the blips from Teams opening the device for a settings preview." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Call clear delay (seconds)" />
+                            <TextBox Style="{StaticResource Field}"
+                                     Width="110"
+                                     HorizontalAlignment="Left"
+                                     Text="{Binding CallClearDelay, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Call clear delay in seconds" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Stay quiet this long before clearing, so switching headsets mid-call does not flap." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Expiration duration" />
+                            <TextBox Style="{StaticResource Field}"
+                                     Width="110"
+                                     HorizontalAlignment="Left"
+                                     Text="{Binding ExpirationDuration, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Presence expiration duration" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="ISO 8601, sent with every preferred-presence write. Preferred presence never auto-reverts, so this is the only thing that clears Busy if Muster dies mid-call. PT2H is the floor. Busy is re-sent well before it expires, so a long meeting does not drop back to Available." />
+
+                            <TextBlock Style="{StaticResource SectionHeader}"
+                                       Margin="0,26,0,0"
+                                       Text="App registration" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="One multi-tenant app registration, delegated Presence.ReadWrite, consented once per client tenant. Sign-ins are held in the MSAL cache under %LOCALAPPDATA%, protected by DPAPI; no token is ever written to muster.json." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Client id" />
+                            <TextBox Style="{StaticResource Field}"
+                                     Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Presence app registration client id" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="The application (client) id of the registration. Not a secret: it appears in every sign-in URL. Register http://localhost as a desktop redirect URI on it." />
+
+                            <TextBlock Style="{StaticResource SectionHeader}"
+                                       Margin="0,26,0,0"
+                                       Text="Accounts" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Teams services with a graph presence strategy, as the saved file describes them. Save first, then sign in: the sign-in happens in your browser, and the tenant may require an administrator to consent." />
+
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Visibility="{Binding HasNoPresenceAccounts, Converter={StaticResource BoolToVisible}}"
+                                       Text="No account is configured for presence. Set a Teams service's presence strategy to graph under Workspaces, with its sign-in address and tenant id." />
+
+                            <ItemsControl ItemsSource="{Binding PresenceAccounts}" Margin="0,4,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,0,0,8"
+                                                Padding="13,10"
+                                                CornerRadius="5"
+                                                Background="#FF25252B"
+                                                BorderBrush="#FF35353E"
+                                                BorderThickness="1">
+                                            <DockPanel LastChildFill="True">
+                                                <Button DockPanel.Dock="Right"
+                                                        Style="{StaticResource MicroButton}"
+                                                        Margin="6,0,0,0"
+                                                        Content="Sign out"
+                                                        IsEnabled="{Binding IsSignedIn}"
+                                                        Command="{Binding SignOutCommand}" />
+                                                <Button DockPanel.Dock="Right"
+                                                        Style="{StaticResource MicroButton}"
+                                                        Content="Sign in"
+                                                        Command="{Binding SignInCommand}" />
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Label}"
+                                                               Foreground="{StaticResource ChromeText}"
+                                                               FontSize="12"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding StatusText}"
+                                                               Foreground="{StaticResource SubtleText}"
+                                                               FontSize="11"
+                                                               Margin="0,2,0,0"
+                                                               TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+
+            <!-- ================= notifications ================= -->
+            <TabItem Style="{StaticResource SectionTab}">
+                <TabItem.Header>
+                    <TextBlock Style="{StaticResource TabHeaderText}" Text="Notifications" />
+                </TabItem.Header>
+
+                <Border Background="{StaticResource Panel}" Padding="24">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Notifications" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Applies to every service. Per-service muting lives on the service itself, under Workspaces." />
+
+                            <CheckBox Style="{StaticResource Check}"
+                                      Content="Show Windows toasts"
+                                      IsChecked="{Binding ToastsEnabled, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Off still records notifications in the panel and still badges the tab; it only stops the interruption." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="History limit" />
+                            <TextBox Style="{StaticResource Field}"
+                                     Width="110"
+                                     HorizontalAlignment="Left"
+                                     Text="{Binding HistoryLimit, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Notification history limit" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="How many entries the notification panel keeps. Between 1 and 5000." />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+
+            <!-- ================= appearance ================= -->
+            <TabItem Style="{StaticResource SectionTab}">
+                <TabItem.Header>
+                    <TextBlock Style="{StaticResource TabHeaderText}" Text="Appearance" />
+                </TabItem.Header>
+
+                <Border Background="{StaticResource Panel}" Padding="24">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Appearance" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Which colourway of the Muster mark the app wears. The same artwork in every case - the per-tenant colour is a workspace accent, set under Workspaces." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Icon set" Margin="0,0,0,0" />
+
+                            <ListBox Style="{StaticResource IconChoiceList}"
+                                     ItemContainerStyle="{StaticResource IconChoiceItem}"
+                                     ItemsSource="{Binding IconSets}"
+                                     SelectedValuePath="Value"
+                                     SelectedValue="{Binding IconSet, Mode=TwoWay}"
+                                     AutomationProperties.Name="Icon set">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Width="86" AutomationProperties.Name="{Binding Name}">
+                                            <Image Source="{Binding Preview}"
+                                                   Width="48"
+                                                   Height="48"
+                                                   HorizontalAlignment="Center"
+                                                   RenderOptions.BitmapScalingMode="HighQuality" />
+                                            <TextBlock Text="{Binding Name}"
+                                                       Margin="0,9,0,0"
+                                                       HorizontalAlignment="Center"
+                                                       Foreground="{StaticResource ChromeText}"
+                                                       FontSize="11.5" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding IconSetDescription}" />
+
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Margin="0,12,0,0"
+                                       Text="Applied as soon as you save, without a restart: the tray icon, every Muster window and the sender icon on Windows toasts all follow it." />
+
+                            <Separator Margin="0,20,0,12" Background="#FF33333B" />
+
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Pinned taskbar button" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="A pinned taskbar button takes its icon from the shortcut, not from the running window. Pinning from this build makes a shortcut that already carries the icon chosen above. This button is for a pin made earlier, which is still pointing at the icon compiled into Muster.exe." />
+
+                            <Button Style="{StaticResource ChromeButton}"
+                                    HorizontalAlignment="Left"
+                                    Content="Point the pinned shortcut at this icon"
+                                    Command="{Binding UpdatePinnedShortcutCommand}" />
+
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding PinnedShortcutStatus}" />
+
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Margin="0,12,0,0"
+                                       Text="Uses the set selected above, whether or not it has been saved yet, and changes nothing else about the shortcut. The taskbar caches pinned icons, so it keeps drawing the old one until Explorer restarts; unpinning and repinning is the quicker way, and produces the right icon because Muster tells Windows what to build the new shortcut from. Explorer itself keeps the compiled-in icon either way." />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+
+            <!-- ================= links ================= -->
+            <TabItem Style="{StaticResource SectionTab}">
+                <TabItem.Header>
+                    <TextBlock Style="{StaticResource TabHeaderText}" Text="Links" />
+                </TabItem.Header>
+
+                <Border Background="{StaticResource Panel}" Padding="24">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Links" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="A link to something you have pinned always opens in its own tab, signed in as that workspace. This decides what happens to everything else." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Links to unpinned sites" />
+                            <ComboBox Style="{StaticResource Picker}"
+                                      HorizontalAlignment="Left"
+                                      MinWidth="180"
+                                      ItemsSource="{x:Static vm:SettingsViewModel.LinkPolicies}"
+                                      SelectedItem="{Binding ExternalLinks, Mode=TwoWay}"
+                                      AutomationProperties.Name="External link policy" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="{Binding ExternalLinksDescription}" />
+
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Margin="0,12,0,0"
+                                       Text="{Binding DefaultHandlerSummary}" />
+
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Margin="0,12,0,0"
+                                       Text="Sign-in prompts and popped-out meetings never leave Muster whatever this says: they need the workspace they came from to stay signed in, and a window this app owns to come back to." />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+
+            <!-- ================= suspension ================= -->
+            <TabItem Style="{StaticResource SectionTab}">
+                <TabItem.Header>
+                    <TextBlock Style="{StaticResource TabHeaderText}" Text="Suspension" />
+                </TabItem.Header>
+
+                <Border Background="{StaticResource Panel}" Padding="24">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="560" HorizontalAlignment="Left">
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Suspension" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Sleeping a workspace you are not looking at hands its memory back, at the cost of pausing the pages in it. Budget 400-700MB per live Teams instance." />
+
+                            <CheckBox Style="{StaticResource Check}"
+                                      Content="Suspend background workspaces"
+                                      IsChecked="{Binding SuspensionEnabled, Mode=TwoWay}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Turn this off if a background service stops delivering while asleep. Services marked keep alive, and anything holding a microphone, are never suspended either way." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Idle before suspending (minutes)" />
+                            <TextBox Style="{StaticResource Field}"
+                                     Width="110"
+                                     HorizontalAlignment="Left"
+                                     IsEnabled="{Binding SuspensionEnabled}"
+                                     Text="{Binding IdleMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Idle minutes before suspending" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Counted from when the whole workspace goes off screen, not per tab. Nothing in the workspace you are looking at is ever suspended. Between 1 and 1440." />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+
+            <!-- ================= about ================= -->
+            <TabItem Style="{StaticResource SectionTab}">
+                <TabItem.Header>
+                    <TextBlock Style="{StaticResource TabHeaderText}" Text="About" />
+                </TabItem.Header>
+
+                <Border Background="{StaticResource Panel}" Padding="24">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="620" HorizontalAlignment="Left">
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Muster" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Several isolated web sessions in one window, grouped into workspaces, with Teams presence kept in step across them." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Version" Margin="0,0,0,3" />
+                            <TextBlock Foreground="White" FontSize="13" FontWeight="SemiBold">
+                                <Run Text="{x:Static vm:SettingsViewModel.AppVersion}" />
+                            </TextBlock>
+                            <TextBlock Style="{StaticResource Hint}">
+                                <Run Text="Built" />
+                                <Run Text="{x:Static vm:SettingsViewModel.BuiltOn}" />
+                            </TextBlock>
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="WebView2 runtime" />
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,0,0,0">
+                                <Run Text="{x:Static vm:SettingsViewModel.WebViewRuntime}" />
+                            </TextBlock>
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Every session runs on this. If it says not installed, nothing will load until the WebView2 runtime is on the machine." />
+
+                            <Separator Margin="0,20,0,12" Background="#FF33333B" />
+
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Updates" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Muster looks at its GitHub releases when it starts and downloads a newer version if there is one, then applies it the next time you open the app rather than closing your sessions underneath you. The check sends nothing about you or your tenants." />
+
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource ChromeButton}"
+                                        Content="Check now"
+                                        IsEnabled="{Binding IsCheckingForUpdates, Converter={StaticResource NotBool}}"
+                                        Command="{Binding CheckForUpdatesCommand}" />
+                                <Button Style="{StaticResource PrimaryButton}"
+                                        Margin="8,0,0,0"
+                                        Content="Restart to update"
+                                        Visibility="{Binding UpdateReady, Converter={StaticResource BoolToVisible}}"
+                                        Command="{Binding RestartToUpdateCommand}" />
+                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding UpdateStatus}" />
+
+                            <Separator Margin="0,20,0,12" Background="#FF33333B" />
+
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Where things are" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="The three folders worth knowing when something has gone wrong." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Config file" Margin="0,0,0,3" />
+                            <TextBox Style="{StaticResource ReadOnlyField}" Text="{Binding ConfigPath, Mode=OneWay}" />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Log folder" />
+                            <TextBox Style="{StaticResource ReadOnlyField}" Text="{Binding ActiveLogDirectory, Mode=OneWay}" />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Workspace profiles" />
+                            <TextBox Style="{StaticResource ReadOnlyField}"
+                                     Text="{x:Static vm:SettingsViewModel.ProfileFolder}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="One folder per workspace. Deleting one signs that workspace out and nothing else." />
+
+                            <Separator Margin="0,20,0,12" Background="#FF33333B" />
+
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Project" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Open source under the MIT licence. Nothing Muster knows about your tenants leaves this machine: there is no telemetry, no crash reporting and no sync." />
+
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource ChromeButton}"
+                                        Content="View on GitHub"
+                                        Command="{Binding OpenProjectCommand}" />
+                                <Button Style="{StaticResource ChromeButton}"
+                                        Margin="8,0,0,0"
+                                        Content="Releases"
+                                        Command="{Binding OpenReleasesCommand}" />
+                                <Button Style="{StaticResource ChromeButton}"
+                                        Margin="8,0,0,0"
+                                        Content="Licence"
+                                        Command="{Binding OpenLicenceCommand}" />
+                            </StackPanel>
+
+                            <TextBlock Style="{StaticResource Hint}" Margin="0,14,0,0">
+                                <Run Text="{x:Static vm:SettingsViewModel.Copyright}" />
+                            </TextBlock>
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Not affiliated with or endorsed by Microsoft. Microsoft, Teams and Microsoft 365 are trademarks of Microsoft Corporation." />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+            </TabItem>
+
+            <!-- ================= logging ================= -->
+            <TabItem Style="{StaticResource SectionTab}">
+                <TabItem.Header>
+                    <TextBlock Style="{StaticResource TabHeaderText}" Text="Logging" />
+                </TabItem.Header>
+
+                <Border Background="{StaticResource Panel}" Padding="24">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" MaxWidth="620" HorizontalAlignment="Left">
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Logging" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="One file per day, written locally. Not telemetry: nothing here ever leaves the machine." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Level" Margin="0,0,0,3" />
+                            <ComboBox Style="{StaticResource Picker}"
+                                      HorizontalAlignment="Left"
+                                      MinWidth="180"
+                                      ItemsSource="{x:Static vm:SettingsViewModel.Levels}"
+                                      SelectedItem="{Binding Level, Mode=TwoWay}"
+                                      AutomationProperties.Name="Log level" />
+                            <TextBlock Style="{StaticResource Hint}" Text="{Binding LevelDescription}" />
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Applied as soon as you save, without a restart. Launching with --verbose still forces Debug whatever is set here." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Keep logs for (days)" />
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox Style="{StaticResource Field}"
+                                         Width="110"
+                                         Text="{Binding RetentionDays, UpdateSourceTrigger=PropertyChanged}"
+                                         AutomationProperties.Name="Log retention in days" />
+                                <Button Style="{StaticResource ChromeButton}"
+                                        Margin="8,0,0,0"
+                                        Content="Delete old logs now"
+                                        Command="{Binding PruneLogsNowCommand}" />
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource Hint}"
+                                       Text="Swept at startup. 0 keeps every file forever. Only muster-*.log files are ever deleted." />
+
+                            <TextBlock Style="{StaticResource FieldLabel}" Text="Log folder override" />
+                            <TextBox Style="{StaticResource Field}"
+                                     Text="{Binding LogDirectory, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Log folder override" />
+                            <TextBlock Style="{StaticResource Hint}">
+                                <Run Text="Blank uses the default. Must be an absolute path, and it only takes effect after a restart. Pending value resolves to:" />
+                                <Run Text="{Binding ResolvedLogDirectory, Mode=OneWay}" FontWeight="SemiBold" />
+                            </TextBlock>
+
+                            <Separator Margin="0,20,0,12" Background="#FF33333B" />
+
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="Find the logs" />
+                            <TextBlock Style="{StaticResource SectionBlurb}"
+                                       Text="Where this run is writing right now." />
+
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right"
+                                        Style="{StaticResource ChromeButton}"
+                                        Margin="8,0,0,0"
+                                        Content="Open folder"
+                                        AutomationProperties.Name="Open log folder"
+                                        Command="{Binding OpenLogFolderCommand}" />
+                                <Button DockPanel.Dock="Right"
+                                        Style="{StaticResource ChromeButton}"
+                                        Margin="8,0,0,0"
+                                        Content="Open today's log"
+                                        Command="{Binding OpenCurrentLogCommand}" />
+                                <TextBox Style="{StaticResource ReadOnlyField}"
+                                         VerticalAlignment="Center"
+                                         Text="{Binding ActiveLogDirectory, Mode=OneWay}"
+                                         AutomationProperties.Name="Active log folder" />
+                            </DockPanel>
+                        </StackPanel>
+
+                        <DockPanel Grid.Row="1" Margin="0,16,0,0">
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                                <Button DockPanel.Dock="Right"
+                                        Style="{StaticResource ChromeButton}"
+                                        Content="Refresh"
+                                        Command="{Binding RefreshLogFilesCommand}" />
+                                <Button DockPanel.Dock="Right"
+                                        Style="{StaticResource ChromeButton}"
+                                        Content="Show in Explorer"
+                                        Command="{Binding RevealSelectedLogCommand}" />
+                                <TextBlock Text="{Binding LogFolderSummary}"
+                                           VerticalAlignment="Center"
+                                           Foreground="{StaticResource SubtleText}"
+                                           FontSize="11" />
+                            </DockPanel>
+
+                            <ListBox Style="{StaticResource EditorList}"
+                                     ItemContainerStyle="{StaticResource EditorListItem}"
+                                     MinHeight="110"
+                                     ItemsSource="{Binding LogFiles}"
+                                     SelectedItem="{Binding SelectedLogFile, Mode=TwoWay}"
+                                     MouseDoubleClick="OnLogFileActivated"
+                                     KeyDown="OnLogFileKeyDown"
+                                     AutomationProperties.Name="Log files">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel LastChildFill="True">
+                                            <TextBlock DockPanel.Dock="Right"
+                                                       Width="72"
+                                                       TextAlignment="Right"
+                                                       Text="{Binding SizeText}"
+                                                       Foreground="{StaticResource SubtleText}"
+                                                       FontSize="11" />
+                                            <TextBlock DockPanel.Dock="Right"
+                                                       Width="130"
+                                                       Text="{Binding LastWritten, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}"
+                                                       Foreground="{StaticResource SubtleText}"
+                                                       FontSize="11" />
+                                            <TextBlock Text="{Binding Name}"
+                                                       FontSize="12"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Grid>
+                </Border>
+            </TabItem>
+        </TabControl>
+
+        <!-- Validation results. Problems block the save; warnings are worth reading but do not. -->
+        <Border Grid.Row="1"
+                Background="#FF1A1A1F"
+                BorderBrush="#FF33333B"
+                BorderThickness="0,1,0,0"
+                Padding="18,10"
+                MaxHeight="200"
+                Visibility="{Binding ShowValidation, Converter={StaticResource BoolToVisible}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <StackPanel Visibility="{Binding HasProblems, Converter={StaticResource BoolToVisible}}">
+                        <TextBlock Text="Fix these before saving"
+                                   Foreground="{StaticResource Danger}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,5" />
+                        <ItemsControl ItemsSource="{Binding Problems}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                               Foreground="#FFF0B4B6"
+                                               FontSize="11.5"
+                                               TextWrapping="Wrap"
+                                               Margin="0,1" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <StackPanel Margin="0,8,0,0"
+                                Visibility="{Binding HasWarnings, Converter={StaticResource BoolToVisible}}">
+                        <TextBlock Text="Worth knowing"
+                                   Foreground="{StaticResource Caution}"
+                                   FontSize="12"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,5" />
+                        <ItemsControl ItemsSource="{Binding Warnings}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                               Foreground="#FFE9C583"
+                                               FontSize="11.5"
+                                               TextWrapping="Wrap"
+                                               Margin="0,1" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <Border Grid.Row="2" Background="{StaticResource Chrome}" Padding="18,12">
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource PrimaryButton}"
+                        Margin="8,0,0,0"
+                        Content="Save"
+                        IsDefault="True"
+                        AutomationProperties.Name="Save settings"
+                        Click="OnSaveClick" />
+                <Button DockPanel.Dock="Right"
+                        Style="{StaticResource ChromeButton}"
+                        Content="Close"
+                        IsCancel="True"
+                        Click="OnCloseClick" />
+                <Button DockPanel.Dock="Left"
+                        Style="{StaticResource ChromeButton}"
+                        Margin="0,0,6,0"
+                        Content="Show muster.json"
+                        ToolTip="{Binding ConfigPath}"
+                        Command="{Binding OpenConfigFileCommand}" />
+                <Button DockPanel.Dock="Left"
+                        Style="{StaticResource ChromeButton}"
+                        Margin="0,0,12,0"
+                        Content="Reload from disk"
+                        ToolTip="Throw away every unsaved change and read muster.json again"
+                        Click="OnReloadClick" />
+
+                <TextBlock VerticalAlignment="Center"
+                           Foreground="{StaticResource SubtleText}"
+                           FontSize="11"
+                           TextTrimming="CharacterEllipsis"
+                           Text="{Binding StatusMessage}" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

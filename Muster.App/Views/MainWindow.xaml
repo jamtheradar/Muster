@@ -1,0 +1,577 @@
+﻿<Window x:Class="Muster.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:vm="clr-namespace:Muster.App.ViewModels"
+        xmlns:views="clr-namespace:Muster.App.Views"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="Muster"
+        Width="1440"
+        Height="900"
+        MinWidth="960"
+        MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="#FF17171A"
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static views:MainWindow.OpenSettingsCommand}" Executed="OnSettingsCommand" />
+    </Window.CommandBindings>
+
+    <Window.InputBindings>
+        <KeyBinding Key="OemComma"
+                    Modifiers="Control"
+                    Command="{x:Static views:MainWindow.OpenSettingsCommand}" />
+    </Window.InputBindings>
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="Chrome" Color="#FF232329" />
+        <SolidColorBrush x:Key="Rail" Color="#FF141417" />
+        <SolidColorBrush x:Key="ChromeText" Color="#FFD6D6DB" />
+        <SolidColorBrush x:Key="SubtleText" Color="#FF83838C" />
+
+        <Style x:Key="ChromeButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource ChromeText}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF33333B" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--
+            Rail glyph button. Segoe Fluent Icons is the Windows 11 icon font; the MDL2 fallback
+            covers Windows 10, where the same codepoint is the same gear.
+        -->
+        <Style x:Key="RailIconButton" TargetType="Button">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource SubtleText}" />
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="9">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF2C2C33" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Workspace button: accent tile with initials, selection marked by a bar on the left. -->
+        <Style x:Key="WorkspaceItem" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Grid Height="46">
+                            <Border x:Name="Marker"
+                                    Width="3"
+                                    HorizontalAlignment="Left"
+                                    CornerRadius="0,2,2,0"
+                                    Background="{Binding AccentBrush}"
+                                    Opacity="0" />
+                            <Border x:Name="Tile"
+                                    Width="34"
+                                    Height="34"
+                                    CornerRadius="9"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Background="{Binding AccentBrush}"
+                                    Opacity="0.55">
+                                <TextBlock Text="{Binding Initials}"
+                                           Foreground="White"
+                                           FontSize="{Binding InitialsFontSize}"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                            <Border x:Name="WorkspaceBadge"
+                                    Margin="0,2,6,0"
+                                    Padding="5,0"
+                                    MinWidth="17"
+                                    Height="17"
+                                    CornerRadius="8"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Top"
+                                    Background="#FFE5484D"
+                                    BorderBrush="#FF141417"
+                                    BorderThickness="1.5"
+                                    Visibility="Collapsed">
+                                <TextBlock Text="{Binding BadgeText}"
+                                           Foreground="White"
+                                           FontSize="10"
+                                           FontWeight="Bold"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding HasUnread}" Value="True">
+                                <Setter TargetName="WorkspaceBadge" Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Tile" Property="Opacity" Value="0.8" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Tile" Property="Opacity" Value="1" />
+                                <Setter TargetName="Tile" Property="CornerRadius" Value="11" />
+                                <Setter TargetName="Marker" Property="Opacity" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Service tab. -->
+        <Style x:Key="ServiceTab" TargetType="ListBoxItem">
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleLabel}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Root"
+                                CornerRadius="5"
+                                Padding="12,5"
+                                Background="Transparent">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="LiveDot"
+                                         Width="6"
+                                         Height="6"
+                                         Margin="0,0,7,0"
+                                         VerticalAlignment="Center"
+                                         Fill="{StaticResource SubtleText}"
+                                         Opacity="0.35" />
+                                <TextBlock x:Name="Label"
+                                           Text="{Binding DisplayName}"
+                                           Foreground="{StaticResource SubtleText}"
+                                           FontSize="12" />
+                                <Border x:Name="TabBadge"
+                                        Margin="7,0,0,0"
+                                        Padding="5,0"
+                                        MinWidth="16"
+                                        Height="16"
+                                        CornerRadius="8"
+                                        VerticalAlignment="Center"
+                                        Background="#FFE5484D"
+                                        Visibility="Collapsed">
+                                    <TextBlock Text="{Binding BadgeText}"
+                                               Foreground="White"
+                                               FontSize="10"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                                <Button x:Name="CloseButton"
+                                        Margin="8,0,-4,0"
+                                        Padding="4,0"
+                                        Content="&#xD7;"
+                                        FontSize="13"
+                                        Foreground="{StaticResource SubtleText}"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Cursor="Hand"
+                                        Visibility="Collapsed"
+                                        ToolTip="Close tab"
+                                        AutomationProperties.Name="Close tab"
+                                        Click="OnCloseTabClick" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding HasUnread}" Value="True">
+                                <Setter TargetName="TabBadge" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="Label" Property="Foreground" Value="{StaticResource ChromeText}" />
+                                <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding CanClose}" Value="True">
+                                <Setter TargetName="CloseButton" Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsLive}" Value="True">
+                                <Setter TargetName="LiveDot" Property="Fill" Value="#FF4CAF50" />
+                                <Setter TargetName="LiveDot" Property="Opacity" Value="0.9" />
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF2C2C33" />
+                                <Setter TargetName="Label" Property="Foreground" Value="{StaticResource ChromeText}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#FF35353E" />
+                                <Setter TargetName="Label" Property="Foreground" Value="White" />
+                                <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="3" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Wrong-tenant guard: the active workspace accent, always visible, full width. -->
+        <Border x:Name="AccentStrip"
+                Grid.Row="0"
+                Background="{Binding ActiveWorkspace.AccentBrush, FallbackValue=#FF2D7D9A}" />
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="58" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Background="{StaticResource Rail}">
+                <DockPanel LastChildFill="True">
+                    <!-- Settings lives at the foot of the rail, under everything it configures. -->
+                    <Button x:Name="RailSettingsButton"
+                            DockPanel.Dock="Bottom"
+                            Style="{StaticResource RailIconButton}"
+                            Margin="0,8,0,10"
+                            Content="&#xE713;"
+                            AutomationProperties.Name="Settings"
+                            ToolTip="Workspaces, services, presence, notifications and logging (Ctrl+,)"
+                            Click="OnSettingsClick" />
+                    <Border DockPanel.Dock="Bottom"
+                            Height="1"
+                            Margin="14,0"
+                            Background="#FF2A2A31" />
+
+                    <ListBox x:Name="WorkspaceRail"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             Padding="0,8"
+                             HorizontalContentAlignment="Stretch"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ItemsSource="{Binding Workspaces}"
+                             SelectedItem="{Binding ActiveWorkspace, Mode=TwoWay}">
+                        <ListBox.ItemContainerStyle>
+                            <Style TargetType="ListBoxItem" BasedOn="{StaticResource WorkspaceItem}">
+                                <Setter Property="ToolTip" Value="{Binding Name}" />
+                                <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleLabel}" />
+                            </Style>
+                        </ListBox.ItemContainerStyle>
+                    </ListBox>
+                </DockPanel>
+            </Border>
+
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="{StaticResource Chrome}" Padding="8,6">
+                    <DockPanel LastChildFill="True">
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource ChromeButton}"
+                                Content="Reload"
+                                Click="OnReloadClick" />
+                        <!-- SPEC section 10: whenever presence sync has applied Busy somewhere,
+                             it has to be visible why. Its own chip rather than a change to the
+                             call one, because a forced Busy has nothing to do with a call. -->
+                        <Border x:Name="PresenceIndicator"
+                                DockPanel.Dock="Right"
+                                Margin="6,0,0,0"
+                                Padding="9,3"
+                                CornerRadius="10"
+                                VerticalAlignment="Center"
+                                Background="#33F2A93B"
+                                BorderBrush="#66F2A93B"
+                                BorderThickness="1"
+                                ToolTip="{Binding PresenceStatusTooltip}"
+                                AutomationProperties.Name="{Binding PresenceStatusText}"
+                                Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="7"
+                                         Height="7"
+                                         Margin="0,0,7,0"
+                                         VerticalAlignment="Center"
+                                         Fill="#FFF2A93B" />
+                                <TextBlock Text="{Binding PresenceStatusText}"
+                                           Foreground="#FFF3D6A6"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="CallIndicator"
+                                DockPanel.Dock="Right"
+                                Margin="6,0,10,0"
+                                Padding="9,3"
+                                CornerRadius="10"
+                                VerticalAlignment="Center"
+                                Background="#33E5484D"
+                                BorderBrush="#66E5484D"
+                                BorderThickness="1"
+                                ToolTip="Detected from microphone use. Whether it writes presence anywhere is presence.enabled's decision."
+                                AutomationProperties.Name="{Binding CallStatusText}"
+                                Visibility="Collapsed">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Width="7"
+                                         Height="7"
+                                         Margin="0,0,7,0"
+                                         VerticalAlignment="Center"
+                                         Fill="#FFE5484D" />
+                                <TextBlock Text="{Binding CallStatusText}"
+                                           Foreground="#FFF0B4B6"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
+                        <Button x:Name="BellButton"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource ChromeButton}"
+                                Content="Notifications"
+                                AutomationProperties.Name="Notifications"
+                                ToolTip="Notification history"
+                                Click="OnBellClick" />
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource ChromeButton}"
+                                Content="Home"
+                                Click="OnHomeClick" />
+                        <Button x:Name="PopOutButton"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource ChromeButton}"
+                                Content="Pop out"
+                                AutomationProperties.Name="Pop out this tab"
+                                ToolTip="Open this tab's page in its own window. It starts fresh at the same address, so a call already running here stays in the tab."
+                                Click="OnPopOutClick" />
+
+                        <Button x:Name="NewTabButton"
+                                DockPanel.Dock="Left"
+                                Style="{StaticResource ChromeButton}"
+                                Content="+"
+                                FontSize="15"
+                                Padding="9,1"
+                                ToolTip="Open a URL in this workspace"
+                                Click="OnNewTabClick" />
+
+                        <ListBox x:Name="ServiceTabs"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Padding="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                 ItemsSource="{Binding ActiveWorkspace.Tabs}"
+                                 SelectedItem="{Binding ActiveWorkspace.ActiveTab, Mode=TwoWay}"
+                                 ItemContainerStyle="{StaticResource ServiceTab}">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                        </ListBox>
+                    </DockPanel>
+                </Border>
+
+                <Border x:Name="AddressBar"
+                        Grid.Row="1"
+                        Background="#FF2A2A31"
+                        BorderBrush="#FF3C3C46"
+                        BorderThickness="0,1,0,1"
+                        Padding="10,7"
+                        Visibility="Collapsed">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock DockPanel.Dock="Left"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,10,0"
+                                   Foreground="{StaticResource SubtleText}"
+                                   FontSize="11"
+                                   Text="Open URL" />
+                        <TextBox x:Name="AddressInput"
+                                 Background="#FF1D1D22"
+                                 Foreground="{StaticResource ChromeText}"
+                                 CaretBrush="{StaticResource ChromeText}"
+                                 BorderBrush="#FF44444F"
+                                 BorderThickness="1"
+                                 Padding="7,4"
+                                 FontSize="12"
+                                 AutomationProperties.Name="Address"
+                                 KeyDown="OnAddressKeyDown" />
+                    </DockPanel>
+                </Border>
+
+                <!-- Every live session is its own control in here, switched by Visibility.
+                     The notification panel gets its own column rather than overlaying the
+                     sessions: WebView2 is an HwndHost, and a child HWND paints over every WPF
+                     element in the same space whatever the z-order says. Opening the panel
+                     narrows the session instead of covering it. -->
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <!-- Auto, so a collapsed panel costs no width at all. -->
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid x:Name="SessionHost" Grid.Column="0" />
+
+                    <Border x:Name="NotificationPanel"
+                            Grid.Column="1"
+                            Width="380"
+                            Background="#FF1E1E23"
+                            BorderBrush="#FF33333B"
+                            BorderThickness="1,0,0,0"
+                            Visibility="Collapsed">
+                        <DockPanel LastChildFill="True">
+                            <Border DockPanel.Dock="Top" Padding="14,10" Background="#FF232329">
+                                <DockPanel LastChildFill="True">
+                                    <Button DockPanel.Dock="Right"
+                                            Style="{StaticResource ChromeButton}"
+                                            Content="Clear"
+                                            AutomationProperties.Name="Clear notifications"
+                                            Click="OnClearNotificationsClick" />
+                                    <TextBlock Text="Notifications"
+                                               VerticalAlignment="Center"
+                                               Foreground="White"
+                                               FontSize="13"
+                                               FontWeight="SemiBold" />
+                                </DockPanel>
+                            </Border>
+
+                            <TextBlock x:Name="NotificationEmptyText"
+                                       DockPanel.Dock="Top"
+                                       Margin="14,18"
+                                       Foreground="{StaticResource SubtleText}"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       Text="Nothing yet. Notifications from your services will collect here." />
+
+                            <ListBox x:Name="NotificationList"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     Padding="0,4"
+                                     HorizontalContentAlignment="Stretch"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     ItemsSource="{Binding Notifications}"
+                                     MouseDoubleClick="OnNotificationActivated"
+                                     KeyDown="OnNotificationListKeyDown">
+                                <ListBox.GroupStyle>
+                                    <GroupStyle>
+                                        <GroupStyle.HeaderTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}"
+                                                           Margin="14,10,14,4"
+                                                           Foreground="{StaticResource SubtleText}"
+                                                           FontSize="10"
+                                                           FontWeight="Bold" />
+                                            </DataTemplate>
+                                        </GroupStyle.HeaderTemplate>
+                                    </GroupStyle>
+                                </ListBox.GroupStyle>
+                                <ListBox.ItemContainerStyle>
+                                    <Style TargetType="ListBoxItem">
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Cursor" Value="Hand" />
+                                        <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                                    </Style>
+                                </ListBox.ItemContainerStyle>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="14,7">
+                                            <DockPanel LastChildFill="True">
+                                                <TextBlock DockPanel.Dock="Right"
+                                                           Text="{Binding Age}"
+                                                           Margin="8,0,0,0"
+                                                           Foreground="{StaticResource SubtleText}"
+                                                           FontSize="10" />
+                                                <TextBlock Text="{Binding Title}"
+                                                           Foreground="White"
+                                                           FontSize="12"
+                                                           FontWeight="SemiBold"
+                                                           TextTrimming="CharacterEllipsis" />
+                                            </DockPanel>
+                                            <TextBlock Text="{Binding Body}"
+                                                       Margin="0,2,0,0"
+                                                       Foreground="{StaticResource ChromeText}"
+                                                       FontSize="11"
+                                                       MaxHeight="34"
+                                                       TextWrapping="Wrap"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Row="3" Background="{StaticResource Chrome}" Padding="10,4">
+                    <DockPanel LastChildFill="True">
+                        <TextBlock x:Name="RuntimeText"
+                                   DockPanel.Dock="Right"
+                                   Margin="12,0,0,0"
+                                   Foreground="{StaticResource SubtleText}"
+                                   FontSize="11"
+                                   Text="" />
+
+                        <!-- The status bar already names the log folder; this makes it openable
+                             rather than something to copy out and paste into Explorer. -->
+                        <Button x:Name="LogsButton"
+                                DockPanel.Dock="Right"
+                                Style="{StaticResource ChromeButton}"
+                                Padding="8,1"
+                                FontSize="11"
+                                Content="Logs"
+                                AutomationProperties.Name="Open logs folder"
+                                Click="OnLogsClick" />
+
+                        <TextBlock x:Name="StatusText"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource SubtleText}"
+                                   FontSize="11"
+                                   TextTrimming="CharacterEllipsis"
+                                   Text="Starting..." />
+                    </DockPanel>
+                </Border>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
