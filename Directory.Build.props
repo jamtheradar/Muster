@@ -18,7 +18,7 @@
       nowhere else; the packaging script reads it back out of the built assembly rather than
       taking a second copy.
     -->
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
 
 </Project>
