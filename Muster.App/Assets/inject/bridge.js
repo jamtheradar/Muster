@@ -95,6 +95,144 @@
     try {
         var live = [];
 
+        // ---- level metering ----------------------------------------------------------------
+        //
+        // Taps the captured track so the shell can show whether the microphone is actually
+        // picking anything up, which is the question Teams makes you run a test call to answer.
+        //
+        // Three things here are deliberate. The analyser is NEVER connected to the context's
+        // destination — that would play the microphone back through the speakers mid-call. Only
+        // one track is metered per frame, because a frame has one microphone and an audio graph
+        // per track would be a real cost inside someone's meeting. And the track's enabled flag
+        // is reported alongside the level, because Teams' mute button leaves the track open and
+        // feeding digital silence: without it, muted and broken look identical.
+        var meter = null;
+
+        function stopMeter() {
+            try {
+                if (!meter) {
+                    return;
+                }
+
+                var stopping = meter;
+                meter = null;
+
+                clearInterval(stopping.timer);
+
+                try {
+                    stopping.source.disconnect();
+                } catch (e) {
+                    // Already torn down with the track.
+                }
+
+                // Closed rather than left idle: an AudioContext holds an output device open, and
+                // one outliving the call it was opened for is exactly the kind of thing that
+                // makes an audio problem look like the shell's fault.
+                try {
+                    stopping.context.close();
+                } catch (e) {
+                    // Nothing useful to do.
+                }
+            } catch (e) {
+                meter = null;
+            }
+        }
+
+        function startMeter(track) {
+            try {
+                var Ctx = window.AudioContext || window.webkitAudioContext;
+
+                if (!Ctx || !track) {
+                    return;
+                }
+
+                var context = new Ctx();
+
+                // getUserMedia has already succeeded, so a gesture has happened and this should
+                // be running. Resume anyway, and swallow the rejection: a suspended context costs
+                // a meter, not a call.
+                try {
+                    if (context.state === 'suspended' && context.resume) {
+                        var resumed = context.resume();
+                        if (resumed && resumed.catch) {
+                            resumed.catch(function () { });
+                        }
+                    }
+                } catch (e) {
+                    // Carry on.
+                }
+
+                var source = context.createMediaStreamSource(new MediaStream([track]));
+                var analyser = context.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = 0;
+                source.connect(analyser);
+
+                var samples = new Float32Array(analyser.fftSize);
+                var peak = 0;
+                var sent = 0;
+
+                // Sampled far faster than it is reported, and the peak between reports is what
+                // goes out: at four reports a second, the average across a short word is almost
+                // nothing.
+                var timer = setInterval(function () {
+                    try {
+                        analyser.getFloatTimeDomainData(samples);
+
+                        var sum = 0;
+                        for (var i = 0; i < samples.length; i++) {
+                            sum += samples[i] * samples[i];
+                        }
+
+                        var rms = Math.sqrt(sum / samples.length);
+                        if (rms > peak) {
+                            peak = rms;
+                        }
+
+                        var now = Date.now();
+                        if (now - sent < 250) {
+                            return;
+                        }
+
+                        sent = now;
+                        post({
+                            kind: 'media-level',
+                            level: peak > 1 ? 1 : peak,
+                            enabled: track.enabled !== false
+                        });
+                        peak = 0;
+                    } catch (e) {
+                        // One bad tick means a broken graph rather than a blip. Stop, rather than
+                        // post nonsense four times a second for the rest of the call.
+                        stopMeter();
+                    }
+                }, 50);
+
+                meter = { context: context, source: source, track: track, timer: timer };
+            } catch (e) {
+                // A meter that will not start is a missing bar, nothing more.
+                stopMeter();
+            }
+        }
+
+        // Keeps one meter running on whichever track is still live, so swapping headsets
+        // mid-call moves the meter across rather than ending it.
+        function ensureMeter() {
+            try {
+                if (meter && live.indexOf(meter.track) >= 0) {
+                    return;
+                }
+
+                stopMeter();
+
+                if (live.length > 0) {
+                    startMeter(live[0]);
+                }
+            } catch (e) {
+                // Ignore.
+            }
+        }
+
         function releaseTrack(track) {
             try {
                 if (track.__musterReleased) {
@@ -108,6 +246,7 @@
                     live.splice(at, 1);
                 }
 
+                ensureMeter();
                 post({ kind: 'media', state: 'released', audio: true, video: false });
             } catch (e) {
                 // Never let teardown bookkeeping break the page.
@@ -123,6 +262,7 @@
                 track.__musterWatched = true;
                 live.push(track);
                 post({ kind: 'media', state: 'acquired', audio: true, video: !!hasVideo });
+                ensureMeter();
 
                 // Fires when the device disappears, but NOT when the page calls stop().
                 track.addEventListener('ended', function () {
@@ -188,6 +328,8 @@
                 for (var i = 0; i < pending.length; i++) {
                     releaseTrack(pending[i]);
                 }
+
+                stopMeter();
             } catch (e) {
                 // Ignore.
             }

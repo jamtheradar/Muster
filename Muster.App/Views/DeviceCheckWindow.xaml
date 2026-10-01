@@ -1,0 +1,58 @@
+<Window x:Class="Muster.App.Views.DeviceCheckWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
+        mc:Ignorable="d"
+        Title="Device check — Muster"
+        Width="960"
+        Height="760"
+        MinWidth="420"
+        MinHeight="420"
+        ShowInTaskbar="True"
+        Background="#FF17171A"
+        TextOptions.TextFormattingMode="Display">
+
+    <!-- Its own top-level window rather than a panel in the shell, for the reason every overlay
+         here ends up in one: WebView2 is an HwndHost, so a live session paints over anything WPF
+         puts in the same space no matter what the z-order says. A window has no such argument to
+         lose. It also keeps the test visible beside a call rather than instead of it. -->
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Created in code rather than declared with a Source, because the control has to be on
+             screen with a realised handle before EnsureCoreWebView2Async, and the virtual host
+             mapping has to be in place before the first navigation. -->
+        <Grid x:Name="PageHost" Grid.Row="0" />
+
+        <Border Grid.Row="1"
+                Background="#FF232329"
+                BorderBrush="#FF34343D"
+                BorderThickness="0,1,0,0"
+                Padding="12,7">
+            <DockPanel LastChildFill="True">
+                <Button DockPanel.Dock="Right"
+                        Content="Close"
+                        Padding="14,4"
+                        Margin="8,0,0,0"
+                        Background="#FF2F2F37"
+                        Foreground="#FFD6D6DB"
+                        BorderBrush="#FF34343D"
+                        BorderThickness="1"
+                        Cursor="Hand"
+                        Click="OnCloseClick" />
+
+                <TextBlock x:Name="StatusText"
+                           VerticalAlignment="Center"
+                           Foreground="#FF83838C"
+                           FontSize="11"
+                           TextTrimming="CharacterEllipsis"
+                           Text="Runs on its own profile, so nothing here touches a signed-in tab or your status." />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

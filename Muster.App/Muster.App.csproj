@@ -47,16 +47,20 @@
     <Content Include="../assets/muster-clay.ico" Link="Assets/muster-clay.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets/inject/bridge.js" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets/inject/probe-presence.js" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Read from disk at navigation time, not embedded: the device check is served through a
+         virtual host mapped straight at this folder, which is what makes it a secure origin
+         without a web server. -->
+    <Content Include="Assets/devicecheck/device-check.html" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="CommunityToolkit.WinUI.Notifications" Version="7.1.2" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.11" />
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />
-    <PackageReference Include="Velopack" Version="1.2.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
   <ItemGroup>

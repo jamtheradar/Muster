@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.Logging;
 using Muster.Core.Config;
 using Muster.Core.Hosting;
+using Muster.Core.Media;
 using Muster.Core.Notifications;
 using Muster.Core.Presence;
 using Muster.Core.Services;
@@ -55,6 +56,71 @@ public sealed partial class MainViewModel(IConfigStore configStore, ILogger<Main
         CallState.Clearing => "Call ending…",
         _ => string.Empty,
     };
+
+    // ---- microphone meter -----------------------------------------------------------------
+
+    /// <summary>
+    /// What the microphone is doing, sampled from the stream Teams actually captured. This is the
+    /// answer to "can anyone hear me" without leaving the call to run Teams' test.
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasMicMeter))]
+    [NotifyPropertyChangedFor(nameof(MicStatusText))]
+    [NotifyPropertyChangedFor(nameof(MicStatusTooltip))]
+    public partial MicSignal MicStatus { get; set; } = MicSignal.Unknown;
+
+    /// <summary>Peak level over the last reporting interval, 0 to 1. Drives the meter bar.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MicStatusTooltip))]
+    public partial double MicLevel { get; set; }
+
+    /// <summary>When sound was last picked up, or null if none has been since capture started.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MicStatusTooltip))]
+    public partial DateTimeOffset? MicLastHeard { get; set; }
+
+    /// <summary>The meter shows whenever something is capturing, call or not.</summary>
+    public bool HasMicMeter => MicStatus is not MicSignal.Unknown;
+
+    public string MicStatusText => MicStatus switch
+    {
+        MicSignal.Live => "Mic live",
+        MicSignal.Quiet => "Mic quiet",
+        MicSignal.Muted => "Mic muted",
+        _ => string.Empty,
+    };
+
+    /// <summary>
+    /// Says what a flat meter means, which is the whole point of having one. "Quiet" with nothing
+    /// ever heard is the shape of a dead microphone; "quiet, last heard nine seconds ago" is the
+    /// shape of someone listening.
+    /// </summary>
+    public string MicStatusTooltip => MicStatus switch
+    {
+        MicSignal.Unknown => "Nothing is using the microphone.",
+        MicSignal.Muted => "The page has muted the microphone. Teams' own mute button does this, "
+            + "and it is not the same as a microphone that is not working.",
+        _ => $"Peak {MicLevel:P0}. {HeardAgo()} Sampled from the stream Teams captured, so if this "
+            + "does not move while you talk, nobody can hear you.",
+    };
+
+    private string HeardAgo()
+    {
+        if (MicLastHeard is not { } heard)
+        {
+            return "Nothing picked up since capture started.";
+        }
+
+        var ago = DateTimeOffset.UtcNow - heard;
+
+        return ago < TimeSpan.FromSeconds(2)
+            ? "Picking sound up now."
+            : $"Last picked up sound {Describe(ago)} ago.";
+
+        static string Describe(TimeSpan ago) => ago.TotalMinutes >= 1
+            ? $"{(int)ago.TotalMinutes} min"
+            : $"{(int)ago.TotalSeconds} s";
+    }
 
     // ---- presence sync ------------------------------------------------------------------------
 

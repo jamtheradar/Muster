@@ -47,6 +47,13 @@ public sealed partial class TrayIcon : IDisposable
         _forceBusy.Click += (_, _) => ForceBusyRequested?.Invoke(this, EventArgs.Empty);
         menu.Items.Add(_forceBusy);
 
+        // Here as well as in the window, because the moment you want it is mid-call with Teams
+        // full screen over the top of everything.
+        menu.Items.Add(
+            "Check mic and speakers...",
+            null,
+            (_, _) => DeviceCheckRequested?.Invoke(this, EventArgs.Empty));
+
         menu.Items.Add(new Forms.ToolStripSeparator());
         menu.Items.Add("Settings...", null, (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty));
 
@@ -90,6 +97,9 @@ public sealed partial class TrayIcon : IDisposable
 
     /// <summary>The user asked for the log folder, without going through the window.</summary>
     public event EventHandler? LogsRequested;
+
+    /// <summary>The user asked to test their microphone and speakers.</summary>
+    public event EventHandler? DeviceCheckRequested;
 
     /// <summary>The user asked to turn the manual presence override on or off.</summary>
     public event EventHandler? ForceBusyRequested;

@@ -173,6 +173,12 @@ public partial class App : Application
         services.AddSingleton<Func<SettingsWindow>>(
             provider => provider.GetRequiredService<SettingsWindow>);
 
+        // Same shape, and transient for a plainer reason: the window owns a WebView2 holding a
+        // microphone, so it is built when asked for and disposed when closed rather than kept.
+        services.AddTransient<DeviceCheckWindow>();
+        services.AddSingleton<Func<DeviceCheckWindow>>(
+            provider => provider.GetRequiredService<DeviceCheckWindow>);
+
         _services = services.BuildServiceProvider();
 
         DispatcherUnhandledException += OnDispatcherUnhandledException;

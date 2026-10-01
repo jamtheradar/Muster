@@ -137,6 +137,48 @@ is `KeepAlive` so the suspension policy cannot put a meeting to sleep while you 
 
 **Count microphone acquisitions per session; never treat them as a toggle.** Teams runs across several frames, each with its own copy of `bridge.js`, and a page can hold more than one stream at once. A session is in a call while its count is above zero. `bridge.js` also releases on `pagehide`, and the host calls `ReportSessionGone` when a tab closes, or a session that goes away mid-call leaves the state machine stuck `InCall`.
 
+**A microphone test must never run inside a `HostedSession`.** Every hosted session gets
+`bridge.js`, and `bridge.js` reports acquisition to `PresenceCoordinator` — so a device test opening
+the microphone through one is indistinguishable from joining a call, and would set the user Busy in
+every configured tenant while they checked their headset. `DeviceCheckWindow` therefore owns a
+plain `WebView2` with its own permission handler and no injected script, on a profile of its own.
+Nothing under `Muster.Core/Presence` had to change to add the feature, and that is the test of
+whether it is still wired correctly.
+
+**Test audio in a WebView2, not against WASAPI.** Teams' audio is Chromium's: its device
+enumeration, its default-device pick, its capture graph. A native test exercises a different stack
+and can pass while Teams stays silent — which under RDP, where the redirected device is the thing
+that half-works, is the likely case rather than the far-fetched one. Confirmed on 2026-09-15: the
+check reported `Default - Remote Audio`, 48 kHz, one channel, which is exactly the device Teams had.
+
+**The mic meter has no silence alarm, deliberately.** An open, quiet microphone is what everyone
+listening in a meeting has, so a timer-based "no signal" warning fires through every call you sit
+quietly in — and it cannot tell that from the case it exists for, talking into a dead microphone,
+by elapsed time alone. The meter is the indicator: speak, and it moves. `MicSignalMonitor` adds
+only the two things a bare meter cannot say, and both are load-bearing:
+
+- **The track's `enabled` flag, reported with every level.** Teams' mute button leaves the track
+  open and feeds digital silence, so without it muted and broken look identical — the single most
+  misleading thing this could show.
+- **When sound was last heard.** "Quiet, nothing ever picked up" is the shape of a dead microphone;
+  "quiet, last heard nine seconds ago" is the shape of someone listening.
+
+**Draw a level meter on a decibel scale.** Speech RMS sits in the bottom tenth of a linear meter,
+so a linear bar barely moves while someone talks — the exact wrong answer from a control whose only
+job is to say whether the microphone works. `LevelToWidthConverter` maps a 60 dB window, and the
+page does the same.
+
+**`bridge.js`'s analyser is never connected to the context's destination,** and only one track per
+frame is metered. Connecting it plays the microphone back through the speakers mid-call; metering
+every track builds an audio graph per stream inside someone's meeting. The `AudioContext` is also
+closed when metering stops rather than left idle, because it holds an output device open and one
+outliving its call is how an unrelated audio problem starts looking like Muster's fault.
+
+**`CoreWebView2.IsDocumentPlayingAudio` is the speaker indicator, and it costs nothing.** WebView2
+already knows which documents are rendering audio, so the tab mark needs no shim and no parsing. It
+answers the other half of "is my headset working": if Teams is playing and you hear nothing, the
+fault is between the browser and your ears rather than in the call.
+
 **Every coordinator event fires on a timer thread, and marshalling them is not tidiness.**
 `SuspensionCoordinator` and `PresenceCoordinator` both raise from `TimeProvider` callbacks, and
 almost everything a handler wants to touch is a WebView2 control or a WPF collection. Getting this
@@ -377,6 +419,16 @@ installer has to preserve a stable exe path or knowingly re-solve both.
 
 **Toasts from an unpackaged app are identified by an AUMID keyed on the exe path,** which the toolkit registers on first `Show()` with an empty `DisplayName`, so Windows labels every toast with the full path. `ToastService` fills in the name and icon *after* the first `Show()`; doing it before is wasted, because registering rewrites the key.
 
+**`await using` needs `ConfigureAwait(false)` on the stream, not just on the read.** The implicit
+`DisposeAsync` is an await too, and it captures whatever context the caller was on. `App.OnStartup`
+blocks the UI thread on `LoadAsync` to get the logging section before there is a logger, so a
+captured dispatcher there is a deadlock — and on a first run, where the missing file sends `Load`
+through `SaveAsync`, it was one. It presented as the app starting with no window, no log line at
+all, and a lone `muster.json.tmp` beside the config: indistinguishable from a hard startup crash,
+and it hit every genuinely new install as well as the `--config <throwaway>` workflow this file
+recommends. Fixed 2026-09-15 by binding the stream with `stream.ConfigureAwait(false)` on both
+paths.
+
 **Never reload the config through a missing file.** `IConfigStore.LoadAsync` writes the defaults
 when the file is not there, which is right on first run and destructive during a watch: some
 editors delete and recreate rather than writing in place, and a reload landing in that gap would
@@ -421,6 +473,10 @@ Teams is the only service that gets bespoke logic, because it is the only one wh
 ## Testing
 
 - `Muster.Core` gets real unit tests, especially the presence state machine. Cover: debounce on acquire, debounce on release, overlapping calls in two sessions, source session excluded from Busy, clear on return to Idle.
+- `MicSignalMonitor` too, and for the same reason the presence machine gets it: it is a state
+  machine over untrusted page input. Cover muted versus quiet versus live, sound holding the meter
+  live through the gaps between words, two frames disagreeing, clamping a level from the page, and
+  forgetting a session.
 - `ConfigDiff` gets the same scrutiny: every change that must *not* disturb a live session, and every one that must.
 - Config load/save round-trip tests with a golden file
 - No UI tests. Manual verification for the shell.
