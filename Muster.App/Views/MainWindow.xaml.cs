@@ -15,6 +15,7 @@ using Muster.App.Tray;
 using Muster.App.ViewModels;
 using Muster.Core.Config;
 using Muster.Core.Hosting;
+using Muster.Core.Media;
 using Muster.Core.Notifications;
 using Muster.Core.Presence;
 using Muster.Core.Services;
@@ -57,15 +58,26 @@ public partial class MainWindow : Window
     private readonly RelaunchProperties _relaunch;
     private readonly UpdateService _updates;
     private readonly Func<SettingsWindow> _settingsFactory;
+    private readonly Func<DeviceCheckWindow> _deviceCheckFactory;
+
+    // Turns the level samples bridge.js posts into something the meter can show. Lives here
+    // rather than in a coordinator because it has no timer: it advances only when a report
+    // arrives, and those arrive on this thread.
+    private readonly MicSignalMonitor _micSignal = new();
     private readonly ILogger<MainWindow> _log;
     private readonly Dictionary<string, PopupWindow> _popups = new(StringComparer.Ordinal);
     private readonly TaskbarBadge _taskbar;
     private SettingsWindow? _settings;
+    private DeviceCheckWindow? _deviceCheck;
     private bool _quitting;
 
     /// <summary>Ctrl+, opens settings, which is where every desktop app puts it.</summary>
     public static readonly RoutedUICommand OpenSettingsCommand =
         new("Settings", nameof(OpenSettingsCommand), typeof(MainWindow));
+
+    /// <summary>Ctrl+Shift+D opens the microphone and speaker check.</summary>
+    public static readonly RoutedUICommand DeviceCheckCommand =
+        new("Device check", nameof(DeviceCheckCommand), typeof(MainWindow));
 
     public MainWindow(
         MainViewModel viewModel,
@@ -84,6 +96,7 @@ public partial class MainWindow : Window
         RelaunchProperties relaunch,
         UpdateService updates,
         Func<SettingsWindow> settingsFactory,
+        Func<DeviceCheckWindow> deviceCheckFactory,
         ILogger<MainWindow> log)
     {
         InitializeComponent();
@@ -104,6 +117,7 @@ public partial class MainWindow : Window
         _relaunch = relaunch;
         _updates = updates;
         _settingsFactory = settingsFactory;
+        _deviceCheckFactory = deviceCheckFactory;
         _log = log;
 
         DataContext = viewModel;
@@ -130,9 +144,13 @@ public partial class MainWindow : Window
         _tray.SettingsRequested += OnTraySettingsRequested;
         _tray.LogsRequested += OnTrayLogsRequested;
         _tray.ForceBusyRequested += OnTrayForceBusyRequested;
+        _tray.DeviceCheckRequested += OnTrayDeviceCheckRequested;
 
         _sessions.NotificationRaised += OnNotificationRaised;
         _sessions.MediaStateChanged += OnMediaStateChanged;
+        _sessions.AudioLevelReported += OnAudioLevelReported;
+        _sessions.AudioPlaybackChanged += OnAudioPlaybackChanged;
+        _micSignal.Changed += OnMicSignalChanged;
         _sessions.SessionStarted += OnSessionStarted;
         _sessions.SessionRemoved += OnSessionRemoved;
         _presence.StateChanged += OnPresenceStateChanged;
@@ -260,6 +278,11 @@ public partial class MainWindow : Window
         if (_settings is { } settings)
         {
             settings.Icon = icon;
+        }
+
+        if (_deviceCheck is { } deviceCheck)
+        {
+            deviceCheck.Icon = icon;
         }
     }
 
@@ -442,6 +465,38 @@ public partial class MainWindow : Window
         else
         {
             _presence.ReportAudioReleased(e.SessionId);
+
+            // The page stops reporting levels when it lets the track go, so without this the
+            // meter would keep showing whatever it read last, for as long as the window was open.
+            _micSignal.Forget(e.SessionId);
+        }
+    }
+
+    /// <summary>
+    /// A level sample from a page holding a microphone. On the UI thread already, because it
+    /// arrives on WebView2's <c>WebMessageReceived</c>, so there is nothing to marshal — but it
+    /// arrives about four times a second per capturing frame, so nothing here may be expensive
+    /// and nothing here logs.
+    /// </summary>
+    private void OnAudioLevelReported(object? sender, AudioLevelEventArgs e)
+        => _micSignal.Report(e.SessionId, e.Level, e.Enabled);
+
+    private void OnMicSignalChanged(object? sender, MicSignalChangedEventArgs e)
+    {
+        _viewModel.MicStatus = e.Signal;
+        _viewModel.MicLevel = e.Level;
+        _viewModel.MicLastHeard = e.LastHeard;
+    }
+
+    /// <summary>
+    /// The speaker half of the check, and free: WebView2 reports which of its documents are
+    /// rendering audio, so the tab can say so without anything being injected or parsed.
+    /// </summary>
+    private void OnAudioPlaybackChanged(object? sender, AudioPlaybackEventArgs e)
+    {
+        if (_viewModel.FindTab(e.SessionId) is { } tab)
+        {
+            tab.IsPlayingAudio = e.Playing;
         }
     }
 
@@ -452,6 +507,7 @@ public partial class MainWindow : Window
     {
         _presence.ReportSessionGone(descriptor.Id);
         _suspension.Forget(descriptor.Id);
+        _micSignal.Forget(descriptor.Id);
     }
 
     // ---- suspension ------------------------------------------------------------------------
@@ -766,6 +822,46 @@ public partial class MainWindow : Window
         // behind it is disorienting. Bring the shell back first.
         BringToFront();
         ShowSettings();
+    }
+
+    // ---- device check ----------------------------------------------------------------------
+
+    private void OnDeviceCheckCommand(object sender, ExecutedRoutedEventArgs e) => ShowDeviceCheck();
+
+    private void OnTrayDeviceCheckRequested(object? sender, EventArgs e) => ShowDeviceCheck();
+
+    /// <summary>
+    /// The meter itself opens the full check. A flat meter is precisely the moment someone wants
+    /// to know which device is being used and whether the speakers work too.
+    /// </summary>
+    private void OnMicIndicatorClick(object sender, MouseButtonEventArgs e) => ShowDeviceCheck();
+
+    /// <summary>
+    /// One device check window at a time, reused while it is open.
+    /// </summary>
+    /// <remarks>
+    /// Unowned, and not preceded by <see cref="BringToFront"/> the way settings is. Both follow
+    /// from when it gets used: mid-call, with Teams over the top of everything, and often from
+    /// the tray precisely because the shell is hidden. An owned window would be hidden along with
+    /// its owner, and dragging the shell into view first would cover the thing being diagnosed.
+    /// The price is the explicit close in <c>OnClosed</c>.
+    /// </remarks>
+    private void ShowDeviceCheck()
+    {
+        if (_deviceCheck is null)
+        {
+            _deviceCheck = _deviceCheckFactory();
+            _deviceCheck.Icon = _icons.CurrentWindowIcon;
+            _deviceCheck.Closed += (_, _) => _deviceCheck = null;
+            _deviceCheck.Show();
+        }
+
+        if (_deviceCheck.WindowState == WindowState.Minimized)
+        {
+            _deviceCheck.WindowState = WindowState.Normal;
+        }
+
+        _deviceCheck.Activate();
     }
 
     private void OnLogsClick(object sender, RoutedEventArgs e) => OpenLogFolder();
@@ -1453,6 +1549,10 @@ public partial class MainWindow : Window
             popup.Close();
         }
 
+        // Unowned for the same reason, and left open it would hold a microphone after the shell
+        // had gone.
+        _deviceCheck?.Close();
+
         _sessions.TitleChanged -= OnSessionTitleChanged;
         _sessions.NewWindowRequested -= OnNewWindowRequested;
         _sessions.CloseRequested -= OnSessionCloseRequested;
@@ -1464,8 +1564,12 @@ public partial class MainWindow : Window
         _tray.SettingsRequested -= OnTraySettingsRequested;
         _tray.LogsRequested -= OnTrayLogsRequested;
         _tray.ForceBusyRequested -= OnTrayForceBusyRequested;
+        _tray.DeviceCheckRequested -= OnTrayDeviceCheckRequested;
         _sessions.NotificationRaised -= OnNotificationRaised;
         _sessions.MediaStateChanged -= OnMediaStateChanged;
+        _sessions.AudioLevelReported -= OnAudioLevelReported;
+        _sessions.AudioPlaybackChanged -= OnAudioPlaybackChanged;
+        _micSignal.Changed -= OnMicSignalChanged;
         _sessions.SessionStarted -= OnSessionStarted;
         _sessions.SessionRemoved -= OnSessionRemoved;
         _presence.StateChanged -= OnPresenceStateChanged;

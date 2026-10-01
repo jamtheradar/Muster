@@ -72,6 +72,15 @@ public sealed class HostedSession : IHostedSession, IDisposable
     public event EventHandler<MediaStateChangedEventArgs>? MediaStateChanged;
 
     /// <summary>
+    /// Raised a few times a second while this session holds a microphone, carrying how loud it is.
+    /// Drives the meter; deliberately never logged, or it would be four lines a second.
+    /// </summary>
+    public event EventHandler<AudioLevelEventArgs>? AudioLevelReported;
+
+    /// <summary>Raised when this session starts or stops playing audio out.</summary>
+    public event EventHandler<AudioPlaybackEventArgs>? AudioPlaybackChanged;
+
+    /// <summary>
     /// Raised for every presence request this session makes, so the page strategy can learn how to
     /// speak as it. Carries live secrets: handlers must not log or persist what is in it.
     /// </summary>
@@ -151,6 +160,7 @@ public sealed class HostedSession : IHostedSession, IDisposable
         core.SourceChanged += OnSourceChanged;
         core.NavigationCompleted += OnNavigationCompleted;
         core.ProcessFailed += OnProcessFailed;
+        core.IsDocumentPlayingAudioChanged += OnPlayingAudioChanged;
 
         _log.LogInformation(
             "Session ready on profile {Profile}, browser pid {Pid}",
@@ -321,6 +331,16 @@ public sealed class HostedSession : IHostedSession, IDisposable
                         acquired,
                         ReadBool(root, "video")));
                     break;
+
+                case "media-level":
+                    // No log line, not even at Debug: this arrives four times a second per frame
+                    // holding a microphone, so logging it would bury an hour-long call's worth of
+                    // everything else.
+                    AudioLevelReported?.Invoke(this, new AudioLevelEventArgs(
+                        Descriptor.Id,
+                        ReadDouble(root, "level"),
+                        ReadBool(root, "enabled")));
+                    break;
             }
         }
         catch (Exception ex)
@@ -334,6 +354,14 @@ public sealed class HostedSession : IHostedSession, IDisposable
         => root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number
             ? value.GetInt32()
             : 0;
+
+    private static double ReadDouble(JsonElement root, string name)
+        => root.TryGetProperty(name, out var value)
+            && value.ValueKind == JsonValueKind.Number
+            && value.TryGetDouble(out var level)
+            && double.IsFinite(level)
+                ? level
+                : 0;
 
     private static bool ReadBool(JsonElement root, string name)
         => root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.True;
@@ -450,6 +478,13 @@ public sealed class HostedSession : IHostedSession, IDisposable
             e.WebErrorStatus,
             e.HttpStatusCode);
     }
+
+    // The speaker half of "is my headset working", and it costs nothing: WebView2 already knows
+    // which of its documents are rendering audio, so there is no shim and nothing to parse.
+    private void OnPlayingAudioChanged(object? sender, object e)
+        => AudioPlaybackChanged?.Invoke(
+            this,
+            new AudioPlaybackEventArgs(Descriptor.Id, Core?.IsDocumentPlayingAudio ?? false));
 
     private void OnProcessFailed(object? sender, CoreWebView2ProcessFailedEventArgs e)
         => _log.LogError(
@@ -682,6 +717,7 @@ public sealed class HostedSession : IHostedSession, IDisposable
             core.SourceChanged -= OnSourceChanged;
             core.NavigationCompleted -= OnNavigationCompleted;
             core.ProcessFailed -= OnProcessFailed;
+            core.IsDocumentPlayingAudioChanged -= OnPlayingAudioChanged;
         }
 
         View.Dispose();

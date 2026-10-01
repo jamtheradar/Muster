@@ -18,12 +18,16 @@
 
     <Window.CommandBindings>
         <CommandBinding Command="{x:Static views:MainWindow.OpenSettingsCommand}" Executed="OnSettingsCommand" />
+        <CommandBinding Command="{x:Static views:MainWindow.DeviceCheckCommand}" Executed="OnDeviceCheckCommand" />
     </Window.CommandBindings>
 
     <Window.InputBindings>
         <KeyBinding Key="OemComma"
                     Modifiers="Control"
                     Command="{x:Static views:MainWindow.OpenSettingsCommand}" />
+        <KeyBinding Key="D"
+                    Modifiers="Control+Shift"
+                    Command="{x:Static views:MainWindow.DeviceCheckCommand}" />
     </Window.InputBindings>
 
     <Window.Resources>
@@ -31,6 +35,9 @@
         <SolidColorBrush x:Key="Rail" Color="#FF141417" />
         <SolidColorBrush x:Key="ChromeText" Color="#FFD6D6DB" />
         <SolidColorBrush x:Key="SubtleText" Color="#FF83838C" />
+
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <views:LevelToWidthConverter x:Key="LevelToWidth" />
 
         <Style x:Key="ChromeButton" TargetType="Button">
             <Setter Property="Background" Value="Transparent" />
@@ -186,6 +193,19 @@
                                            Text="{Binding DisplayName}"
                                            Foreground="{StaticResource SubtleText}"
                                            FontSize="12" />
+                                <!-- Sound coming out of this tab, from WebView2's own
+                                     IsDocumentPlayingAudio. Three bars rather than an icon font:
+                                     no glyph to be missing, and it reads at 10 pixels. -->
+                                <StackPanel x:Name="AudioMark"
+                                            Orientation="Horizontal"
+                                            Margin="7,0,0,0"
+                                            VerticalAlignment="Center"
+                                            Visibility="Collapsed">
+                                    <Rectangle Width="2" Height="5" Margin="1,0" Fill="#FF4CAF50" VerticalAlignment="Center" />
+                                    <Rectangle Width="2" Height="9" Margin="1,0" Fill="#FF4CAF50" VerticalAlignment="Center" />
+                                    <Rectangle Width="2" Height="6" Margin="1,0" Fill="#FF4CAF50" VerticalAlignment="Center" />
+                                </StackPanel>
+
                                 <Border x:Name="TabBadge"
                                         Margin="7,0,0,0"
                                         Padding="5,0"
@@ -222,6 +242,9 @@
                                 <Setter TargetName="TabBadge" Property="Visibility" Value="Visible" />
                                 <Setter TargetName="Label" Property="Foreground" Value="{StaticResource ChromeText}" />
                                 <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsPlayingAudio}" Value="True">
+                                <Setter TargetName="AudioMark" Property="Visibility" Value="Visible" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding CanClose}" Value="True">
                                 <Setter TargetName="CloseButton" Property="Visibility" Value="Visible" />
@@ -366,6 +389,56 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- The mic meter. Shown whenever anything is capturing rather than only
+                             during a call, because the moment worth catching is the one before
+                             the call properly starts. Clickable, because a flat meter is exactly
+                             when you want the full check. -->
+                        <Border x:Name="MicIndicator"
+                                DockPanel.Dock="Right"
+                                Margin="6,0,0,0"
+                                Padding="9,4"
+                                CornerRadius="10"
+                                VerticalAlignment="Center"
+                                Background="#FF2A2A31"
+                                BorderBrush="#FF3C3C46"
+                                BorderThickness="1"
+                                Cursor="Hand"
+                                ToolTip="{Binding MicStatusTooltip}"
+                                AutomationProperties.Name="{Binding MicStatusText}"
+                                MouseLeftButtonUp="OnMicIndicatorClick"
+                                Visibility="{Binding HasMicMeter, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Orientation="Horizontal">
+                                <Border Width="46"
+                                        Height="8"
+                                        CornerRadius="4"
+                                        Background="#FF141418"
+                                        ClipToBounds="True"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,8,0">
+                                    <Rectangle HorizontalAlignment="Left"
+                                               RadiusX="4"
+                                               RadiusY="4"
+                                               Width="{Binding MicLevel, Converter={StaticResource LevelToWidth}, ConverterParameter=46}">
+                                        <Rectangle.Style>
+                                            <Style TargetType="Rectangle">
+                                                <Setter Property="Fill" Value="#FF6E6E78" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding MicStatus}" Value="Live">
+                                                        <Setter Property="Fill" Value="#FF4CAF50" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Rectangle.Style>
+                                    </Rectangle>
+                                </Border>
+                                <TextBlock Text="{Binding MicStatusText}"
+                                           Foreground="{StaticResource SubtleText}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
+
                         <Button x:Name="BellButton"
                                 DockPanel.Dock="Right"
                                 Style="{StaticResource ChromeButton}"
@@ -373,6 +446,12 @@
                                 AutomationProperties.Name="Notifications"
                                 ToolTip="Notification history"
                                 Click="OnBellClick" />
+                        <Button DockPanel.Dock="Right"
+                                Style="{StaticResource ChromeButton}"
+                                Content="Mic &amp; speakers"
+                                AutomationProperties.Name="Check microphone and speakers"
+                                ToolTip="Test the microphone and speakers in the same audio stack Teams uses. Ctrl+Shift+D."
+                                Command="{x:Static views:MainWindow.DeviceCheckCommand}" />
                         <Button DockPanel.Dock="Right"
                                 Style="{StaticResource ChromeButton}"
                                 Content="Home"

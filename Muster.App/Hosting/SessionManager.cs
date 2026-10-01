@@ -45,6 +45,12 @@ public sealed class SessionManager(
     /// <summary>Raised when any live session starts or stops capturing audio.</summary>
     public event EventHandler<MediaStateChangedEventArgs>? MediaStateChanged;
 
+    /// <summary>Raised a few times a second while any live session holds a microphone.</summary>
+    public event EventHandler<AudioLevelEventArgs>? AudioLevelReported;
+
+    /// <summary>Raised when any live session starts or stops playing audio out.</summary>
+    public event EventHandler<AudioPlaybackEventArgs>? AudioPlaybackChanged;
+
     /// <summary>Raised once a session is live, whether it was shown, preloaded or adopted.</summary>
     public event EventHandler<SessionDescriptor>? SessionStarted;
 
@@ -221,6 +227,8 @@ public sealed class SessionManager(
         session.CloseRequested += OnSessionCloseRequested;
         session.NotificationRaised += OnSessionNotificationRaised;
         session.MediaStateChanged += OnSessionMediaStateChanged;
+        session.AudioLevelReported += OnSessionAudioLevelReported;
+        session.AudioPlaybackChanged += OnSessionAudioPlaybackChanged;
 
         host.Children.Add(session.View);
 
@@ -288,6 +296,12 @@ public sealed class SessionManager(
     private void OnSessionMediaStateChanged(object? sender, MediaStateChangedEventArgs e)
         => MediaStateChanged?.Invoke(this, e);
 
+    private void OnSessionAudioLevelReported(object? sender, AudioLevelEventArgs e)
+        => AudioLevelReported?.Invoke(this, e);
+
+    private void OnSessionAudioPlaybackChanged(object? sender, AudioPlaybackEventArgs e)
+        => AudioPlaybackChanged?.Invoke(this, e);
+
     /// <summary>The panel a session's control was added to, falling back to the shared one.</summary>
     private Panel HostOf(string sessionId)
         => _hosts.TryGetValue(sessionId, out var host) ? host : _host ?? new Grid();
@@ -299,6 +313,8 @@ public sealed class SessionManager(
         session.CloseRequested -= OnSessionCloseRequested;
         session.NotificationRaised -= OnSessionNotificationRaised;
         session.MediaStateChanged -= OnSessionMediaStateChanged;
+        session.AudioLevelReported -= OnSessionAudioLevelReported;
+        session.AudioPlaybackChanged -= OnSessionAudioPlaybackChanged;
     }
 
     public void Dispose()

@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en-au">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device check</title>
+<style>
+    :root {
+        --ground: #17171a;
+        --card: #232329;
+        --edge: #34343d;
+        --text: #d6d6db;
+        --subtle: #83838c;
+        --good: #4caf50;
+        --bad: #e5484d;
+        --warn: #f2a93b;
+        --accent: #6aa9ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    /* The hidden attribute only sets display:none at user-agent specificity, so any class here
+       that sets a display of its own quietly beats it — which showed up as an empty chip, an
+       unanswered "did you hear it?" and a row of em dashes all visible before anything had run. */
+    [hidden] { display: none !important; }
+
+    html, body {
+        margin: 0;
+        height: 100%;
+    }
+
+    body {
+        background: var(--ground);
+        color: var(--text);
+        font: 13px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        padding: 18px 20px 28px;
+    }
+
+    h1 {
+        font-size: 17px;
+        font-weight: 600;
+        margin: 0 0 3px;
+    }
+
+    h2 {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: var(--subtle);
+        margin: 0 0 12px;
+    }
+
+    p.lede {
+        color: var(--subtle);
+        margin: 0 0 16px;
+        max-width: 70ch;
+    }
+
+    .summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--edge);
+        background: #1d1d22;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .chip .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--subtle);
+        flex: none;
+    }
+
+    .chip[data-state="ok"] { border-color: #3d6b40; background: #1b2a1c; }
+    .chip[data-state="ok"] .dot { background: var(--good); }
+    .chip[data-state="bad"] { border-color: #6b3436; background: #2a1b1c; }
+    .chip[data-state="bad"] .dot { background: var(--bad); }
+    .chip[data-state="busy"] .dot { background: var(--warn); }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 14px;
+        align-items: start;
+    }
+
+    .card {
+        background: var(--card);
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 16px 16px 18px;
+    }
+
+    label.field {
+        display: block;
+        font-size: 11px;
+        color: var(--subtle);
+        margin: 0 0 5px;
+    }
+
+    select, input[type="range"] {
+        width: 100%;
+        font: inherit;
+    }
+
+    select {
+        background: #1a1a1f;
+        color: var(--text);
+        border: 1px solid var(--edge);
+        border-radius: 5px;
+        padding: 6px 8px;
+        margin-bottom: 12px;
+    }
+
+    button {
+        font: inherit;
+        font-size: 12px;
+        color: var(--text);
+        background: #2f2f37;
+        border: 1px solid var(--edge);
+        border-radius: 5px;
+        padding: 6px 13px;
+        cursor: pointer;
+    }
+
+    button:hover:not(:disabled) { background: #3a3a44; }
+    button:disabled { opacity: .45; cursor: default; }
+    button.primary { background: #2f4a72; border-color: #3d5f8f; }
+    button.primary:hover:not(:disabled) { background: #395a89; }
+
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        align-items: center;
+    }
+
+    /* ---- level meter ---- */
+    .meter {
+        position: relative;
+        height: 26px;
+        border-radius: 5px;
+        background: #121216;
+        border: 1px solid var(--edge);
+        overflow: hidden;
+        margin: 4px 0 8px;
+    }
+
+    .meter .fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0;
+        background: linear-gradient(90deg, #3d8c40 0%, #4caf50 55%, #f2a93b 80%, #e5484d 100%);
+        transition: width 60ms linear;
+    }
+
+    .meter .peak {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        left: 0;
+        opacity: 0;
+        background: #ffffffcc;
+        transition: left 120ms linear, opacity 200ms linear;
+    }
+
+    .meter .ticks {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background-image: repeating-linear-gradient(90deg, transparent 0 41px, #ffffff14 41px 42px);
+    }
+
+    .meter[data-muted="true"] .fill { background: #3a3a44; }
+
+    .reading {
+        font-variant-numeric: tabular-nums;
+        color: var(--subtle);
+        font-size: 12px;
+        min-height: 20px;
+    }
+
+    .verdict {
+        margin-top: 10px;
+        padding: 9px 11px;
+        border-radius: 6px;
+        border: 1px solid var(--edge);
+        background: #1c1c21;
+        font-size: 12px;
+    }
+
+    .verdict[data-state="ok"] { border-color: #3d6b40; background: #1b2a1c; }
+    .verdict[data-state="bad"] { border-color: #6b3436; background: #2a1b1c; }
+    .verdict[data-state="warn"] { border-color: #6b5426; background: #2a2418; }
+
+    dl.detail {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 2px 14px;
+        margin: 12px 0 0;
+        font-size: 12px;
+    }
+
+    dl.detail dt { color: var(--subtle); }
+    dl.detail dd { margin: 0; font-variant-numeric: tabular-nums; }
+
+    ul.devices {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        font-size: 12px;
+    }
+
+    ul.devices li {
+        padding: 5px 0;
+        border-bottom: 1px solid #2c2c34;
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+    }
+
+    ul.devices li:last-child { border-bottom: 0; }
+
+    .tag {
+        font-size: 10px;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--subtle);
+        border: 1px solid var(--edge);
+        border-radius: 3px;
+        padding: 0 5px;
+        flex: none;
+    }
+
+    .tag.remote { color: var(--accent); border-color: #34506f; }
+    .tag.default { color: var(--good); border-color: #3d6b40; }
+
+    ol.log {
+        list-style: none;
+        margin: 8px 0 0;
+        padding: 0;
+        font-size: 12px;
+        max-height: 180px;
+        overflow-y: auto;
+    }
+
+    ol.log li {
+        padding: 3px 0;
+        display: flex;
+        gap: 9px;
+    }
+
+    ol.log time {
+        color: var(--subtle);
+        font-variant-numeric: tabular-nums;
+        flex: none;
+    }
+
+    .added { color: var(--good); }
+    .removed { color: var(--bad); }
+    .empty { color: var(--subtle); }
+
+    .note {
+        color: var(--subtle);
+        font-size: 12px;
+        margin: 12px 0 0;
+    }
+
+    audio { display: none; }
+</style>
+</head>
+<body>
+
+<h1>Device check</h1>
+<p class="lede">
+    Runs in the same browser engine as your Teams tabs, on the same audio stack, so what works here
+    works there. Nothing on this page joins a call or touches your status.
+</p>
+
+<div class="summary">
+    <span class="chip" id="micChip"><span class="dot"></span><span>Microphone not tested</span></span>
+    <span class="chip" id="spkChip"><span class="dot"></span><span>Speakers not tested</span></span>
+    <span class="chip" id="rdpChip" hidden><span class="dot"></span><span></span></span>
+</div>
+
+<div class="grid">
+
+    <!-- ---------------- microphone ---------------- -->
+    <section class="card">
+        <h2>Microphone</h2>
+
+        <label class="field" for="micSelect">Input device</label>
+        <select id="micSelect"><option value="">Default</option></select>
+
+        <div class="meter" id="meter" data-muted="false">
+            <div class="fill" id="meterFill"></div>
+            <div class="peak" id="meterPeak"></div>
+            <div class="ticks"></div>
+        </div>
+        <div class="reading" id="micReading">Not listening.</div>
+
+        <div class="row">
+            <button class="primary" id="micStart">Start listening</button>
+            <button id="micStop" disabled>Stop</button>
+            <button id="recStart" disabled>Record 5 s</button>
+            <button id="recPlay" disabled>Play it back</button>
+        </div>
+
+        <div class="verdict" id="micVerdict">
+            Press <b>Start listening</b>, then talk normally. The bar should move with your voice.
+        </div>
+
+        <dl class="detail" id="micDetail" hidden>
+            <dt>Captured</dt><dd id="dTrack">—</dd>
+            <dt>Sample rate</dt><dd id="dRate">—</dd>
+            <dt>Channels</dt><dd id="dChannels">—</dd>
+            <dt>Processing</dt><dd id="dProcessing">—</dd>
+        </dl>
+    </section>
+
+    <!-- ---------------- speakers ---------------- -->
+    <section class="card">
+        <h2>Speakers</h2>
+
+        <label class="field" for="spkSelect">Output device</label>
+        <select id="spkSelect"><option value="">Default</option></select>
+
+        <label class="field" for="volume">Test volume</label>
+        <input type="range" id="volume" min="0" max="100" value="35">
+
+        <div class="row" style="margin-top:12px">
+            <button class="primary" id="toneBoth">Both ears</button>
+            <button id="toneLeft">Left only</button>
+            <button id="toneRight">Right only</button>
+            <button id="toneSweep">Sweep</button>
+        </div>
+
+        <div class="verdict" id="spkVerdict">
+            Play a tone with your headset on. Left and right are worth trying separately — a lead
+            with one dead channel sounds fine until someone talks on that side.
+        </div>
+
+        <div class="row" id="heardRow" hidden style="margin-top:10px">
+            <span style="color:var(--subtle)">Did you hear it?</span>
+            <button id="heardYes">Yes</button>
+            <button id="heardNo">No</button>
+        </div>
+
+        <p class="note" id="spkNote"></p>
+    </section>
+
+    <!-- ---------------- devices ---------------- -->
+    <section class="card">
+        <h2>Devices Windows is offering</h2>
+        <ul class="devices" id="deviceList">
+            <li class="empty">Start listening once to see device names — the browser hides them until then.</li>
+        </ul>
+        <p class="note" id="deviceNote"></p>
+    </section>
+
+    <!-- ---------------- device changes ---------------- -->
+    <section class="card">
+        <h2>Arrivals and departures</h2>
+        <p class="note" style="margin-top:0">
+            Every device that appears or disappears while this window is open, with a timestamp.
+            Leave it open over a reconnect: redirection dropping out shows up here as devices
+            leaving and not coming back.
+        </p>
+        <ol class="log" id="changeLog">
+            <li class="empty">Nothing has changed since this opened.</li>
+        </ol>
+    </section>
+
+</div>
+
+<audio id="playback"></audio>
+
+<script>
+'use strict';
+
+// ---------------------------------------------------------------------------------------------
+// Everything here is best effort and self-contained. The page is served from a virtual host
+// mapped to the app's own Assets folder, so it is a secure origin with no network access.
+//
+// It deliberately does NOT run bridge.js: opening a microphone under that shim would be reported
+// as a call and could set the user Busy in every configured tenant. See DeviceCheckWindow.
+// ---------------------------------------------------------------------------------------------
+
+var $ = function (id) { return document.getElementById(id); };
+
+var stream = null;
+var audioCtx = null;
+var analyser = null;
+var sourceNode = null;
+var rafId = 0;
+var peakHold = 0;
+var peakAt = 0;
+var everHeard = false;
+var recorder = null;
+var recorded = null;
+var toneCtx = null;
+var toneStop = null;
+var lastDevices = [];
+var logEmpty = true;
+
+function post(message) {
+    try {
+        if (window.chrome && window.chrome.webview) {
+            window.chrome.webview.postMessage(message);
+        }
+    } catch (e) {
+        // The host is only listening so the result reaches the log. Never worth failing over.
+    }
+}
+
+function chip(el, state, text) {
+    el.dataset.state = state;
+    el.lastElementChild.textContent = text;
+    el.hidden = false;
+}
+
+function verdict(el, state, html) {
+    el.dataset.state = state;
+    el.innerHTML = html;
+}
+
+function clock() {
+    var now = new Date();
+    return now.toTimeString().slice(0, 8);
+}
+
+// ---- device names ---------------------------------------------------------------------------
+//
+// The reason this page shows raw labels rather than tidying them up: under RDP the label is the
+// diagnosis. "Remote Audio" means redirection is working; the server's own devices, or nothing
+// at all, means it is not.
+var REMOTE = /(remote audio|remotefx|rdp|citrix|hdx|vmware|horizon|teradici|parsec|virtual audio|vb-audio|vb-cable)/i;
+
+function isRemote(label) {
+    return REMOTE.test(label || '');
+}
+
+function describe(device, index) {
+    if (device.label) {
+        return device.label;
+    }
+
+    // No permission yet, so Chromium hands out blank labels.
+    return (device.kind === 'audioinput' ? 'Input ' : 'Output ') + (index + 1) + ' (name hidden until allowed)';
+}
+
+async function refreshDevices(announce) {
+    var devices;
+
+    try {
+        devices = await navigator.mediaDevices.enumerateDevices();
+    } catch (e) {
+        return;
+    }
+
+    var audio = devices.filter(function (d) {
+        return d.kind === 'audioinput' || d.kind === 'audiooutput';
+    });
+
+    if (announce) {
+        diff(lastDevices, audio);
+    }
+
+    lastDevices = audio.map(function (d) {
+        return { id: d.deviceId, kind: d.kind, label: d.label };
+    });
+
+    fillSelect($('micSelect'), audio.filter(function (d) { return d.kind === 'audioinput'; }));
+    fillSelect($('spkSelect'), audio.filter(function (d) { return d.kind === 'audiooutput'; }));
+    paintDeviceList(audio);
+}
+
+function fillSelect(select, devices) {
+    var chosen = select.value;
+    select.innerHTML = '';
+
+    var fallback = document.createElement('option');
+    fallback.value = '';
+    fallback.textContent = 'Default device';
+    select.appendChild(fallback);
+
+    devices.forEach(function (device, index) {
+        if (device.deviceId === 'default' || device.deviceId === 'communications') {
+            // Chromium lists these aliases alongside the real device. Showing both reads as a
+            // duplicate, and picking one is no different from picking Default above.
+            return;
+        }
+
+        var option = document.createElement('option');
+        option.value = device.deviceId;
+        option.textContent = describe(device, index);
+        select.appendChild(option);
+    });
+
+    select.value = chosen;
+
+    if (select.value !== chosen) {
+        select.value = '';
+    }
+}
+
+function paintDeviceList(devices) {
+    var list = $('deviceList');
+    list.innerHTML = '';
+
+    var real = devices.filter(function (d) {
+        return d.deviceId !== 'default' && d.deviceId !== 'communications';
+    });
+
+    if (real.length === 0) {
+        var none = document.createElement('li');
+        none.className = 'empty';
+        none.textContent = 'Windows is offering no audio devices at all.';
+        list.appendChild(none);
+        return;
+    }
+
+    var remotes = 0;
+
+    real.forEach(function (device, index) {
+        var item = document.createElement('li');
+
+        var kind = document.createElement('span');
+        kind.className = 'tag';
+        kind.textContent = device.kind === 'audioinput' ? 'in' : 'out';
+        item.appendChild(kind);
+
+        var name = document.createElement('span');
+        name.textContent = describe(device, index);
+        item.appendChild(name);
+
+        if (isRemote(device.label)) {
+            remotes++;
+            var tag = document.createElement('span');
+            tag.className = 'tag remote';
+            tag.textContent = 'redirected';
+            item.appendChild(tag);
+        }
+
+        list.appendChild(item);
+    });
+
+    var inputs = real.filter(function (d) { return d.kind === 'audioinput'; }).length;
+    var outputs = real.length - inputs;
+    $('deviceNote').textContent = inputs + ' input' + (inputs === 1 ? '' : 's') + ', '
+        + outputs + ' output' + (outputs === 1 ? '' : 's') + '.';
+
+    if (remotes > 0) {
+        chip($('rdpChip'), 'ok', remotes + ' redirected device' + (remotes === 1 ? '' : 's'));
+    } else if (lastDevices.some(function (d) { return d.label; })) {
+        // Names are known and none of them look redirected. Said plainly rather than as a
+        // warning: plenty of people run this at their desk.
+        chip($('rdpChip'), '', 'No redirected devices');
+    }
+}
+
+function diff(before, after) {
+    var seen = {};
+    after.forEach(function (d) { seen[d.kind + '|' + d.deviceId] = d; });
+
+    before.forEach(function (d) {
+        if (!seen[d.kind + '|' + d.deviceId]) {
+            note('removed', (d.label || 'An unnamed device') + ' went away');
+        }
+    });
+
+    var had = {};
+    before.forEach(function (d) { had[d.kind + '|' + d.deviceId] = true; });
+
+    after.forEach(function (d) {
+        if (!had[d.kind + '|' + d.deviceId]) {
+            note('added', (d.label || 'An unnamed device') + ' appeared');
+        }
+    });
+}
+
+function note(kind, text) {
+    var log = $('changeLog');
+
+    if (logEmpty) {
+        log.innerHTML = '';
+        logEmpty = false;
+    }
+
+    var item = document.createElement('li');
+    var when = document.createElement('time');
+    when.textContent = clock();
+    var what = document.createElement('span');
+    what.className = kind;
+    what.textContent = text;
+
+    item.appendChild(when);
+    item.appendChild(what);
+    log.insertBefore(item, log.firstChild);
+
+    post({ kind: 'device-check', event: kind, detail: text });
+}
+
+// ---- microphone ------------------------------------------------------------------------------
+
+async function startListening() {
+    stopListening();
+
+    var wanted = $('micSelect').value;
+    var constraints = {
+        audio: wanted ? { deviceId: { exact: wanted } } : true,
+        video: false
+    };
+
+    $('micStart').disabled = true;
+    verdict($('micVerdict'), '', 'Asking Windows for the microphone…');
+
+    try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (e) {
+        $('micStart').disabled = false;
+        failMicrophone(e);
+        return;
+    }
+
+    // Labels are only handed out once capture has been allowed, so this is the first point the
+    // device list can say anything useful.
+    await refreshDevices(false);
+
+    var track = stream.getAudioTracks()[0];
+    var settings = {};
+
+    try {
+        settings = track.getSettings() || {};
+    } catch (e) {
+        settings = {};
+    }
+
+    $('dTrack').textContent = track.label || 'unnamed device';
+    $('dRate').textContent = settings.sampleRate ? settings.sampleRate + ' Hz' : 'not reported';
+    $('dChannels').textContent = settings.channelCount || 'not reported';
+    $('dProcessing').textContent = [
+        settings.echoCancellation ? 'echo cancellation' : null,
+        settings.noiseSuppression ? 'noise suppression' : null,
+        settings.autoGainControl ? 'auto gain' : null
+    ].filter(Boolean).join(', ') || 'none';
+    $('micDetail').hidden = false;
+
+    track.addEventListener('ended', function () {
+        // The device disappeared underneath us, which is exactly what a dropped redirection
+        // looks like from in here.
+        note('removed', 'The microphone being captured stopped: ' + (track.label || 'unnamed device'));
+        verdict($('micVerdict'), 'bad',
+            '<b>The microphone disappeared mid-test.</b> Windows took the device away rather than '
+            + 'the page letting it go. Under RDP that is redirection dropping.');
+        chip($('micChip'), 'bad', 'Microphone vanished');
+        stopListening();
+    });
+
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new Ctx();
+
+    try {
+        if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+        }
+    } catch (e) {
+        // Carry on; the meter simply will not move.
+    }
+
+    sourceNode = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0;
+    sourceNode.connect(analyser);
+    // Never to audioCtx.destination: that would feed the microphone straight back to the
+    // speakers, which with any open headset is a howl rather than a test.
+
+    everHeard = false;
+    peakHold = 0;
+    $('micStop').disabled = false;
+    $('recStart').disabled = typeof window.MediaRecorder !== 'function';
+    chip($('micChip'), 'busy', 'Listening…');
+    verdict($('micVerdict'), '', 'Listening. <b>Say something</b> — the bar should follow your voice.');
+
+    draw();
+    post({ kind: 'device-check', event: 'mic-open', detail: track.label || 'unnamed device' });
+}
+
+function failMicrophone(error) {
+    var name = (error && error.name) || 'Error';
+    var why;
+
+    switch (name) {
+        case 'NotAllowedError':
+        case 'SecurityError':
+            why = 'Windows or the browser refused permission. Check Settings &rsaquo; Privacy '
+                + '&rsaquo; Microphone, and that no policy is blocking it.';
+            break;
+        case 'NotFoundError':
+        case 'OverconstrainedError':
+            why = 'There is no such microphone. If you were expecting a redirected one, the '
+                + 'remote session is not passing it through.';
+            break;
+        case 'NotReadableError':
+            why = 'Windows can see the device but will not open it. Usually something else has '
+                + 'it exclusively, or audio redirection has half-fallen over — the case a '
+                + 'reconnect normally fixes.';
+            break;
+        default:
+            why = 'Reported as ' + name + '.';
+    }
+
+    verdict($('micVerdict'), 'bad', '<b>Could not open the microphone.</b> ' + why);
+    chip($('micChip'), 'bad', 'Microphone unavailable');
+    post({ kind: 'device-check', event: 'mic-failed', detail: name });
+}
+
+function stopListening() {
+    if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = 0;
+    }
+
+    if (recorder && recorder.state !== 'inactive') {
+        try {
+            recorder.stop();
+        } catch (e) {
+            // Already going.
+        }
+    }
+
+    if (sourceNode) {
+        try {
+            sourceNode.disconnect();
+        } catch (e) {
+            // Already gone.
+        }
+
+        sourceNode = null;
+    }
+
+    if (audioCtx) {
+        try {
+            audioCtx.close();
+        } catch (e) {
+            // Already closed.
+        }
+
+        audioCtx = null;
+    }
+
+    if (stream) {
+        stream.getTracks().forEach(function (track) {
+            try {
+                track.stop();
+            } catch (e) {
+                // Ignore.
+            }
+        });
+
+        stream = null;
+    }
+
+    analyser = null;
+    $('micStart').disabled = false;
+    $('micStop').disabled = true;
+    $('recStart').disabled = true;
+    $('meter').dataset.muted = 'false';
+    $('meterFill').style.width = '0';
+    $('meterPeak').style.left = '0';
+    $('meterPeak').style.opacity = '0';
+    $('micReading').textContent = 'Not listening.';
+}
+
+function draw() {
+    if (!analyser) {
+        return;
+    }
+
+    var samples = new Float32Array(analyser.fftSize);
+    analyser.getFloatTimeDomainData(samples);
+
+    var sum = 0;
+    var top = 0;
+
+    for (var i = 0; i < samples.length; i++) {
+        var value = samples[i];
+        sum += value * value;
+        var size = value < 0 ? -value : value;
+        if (size > top) {
+            top = size;
+        }
+    }
+
+    var rms = Math.sqrt(sum / samples.length);
+
+    // Plotted on a decibel scale across a 60 dB window rather than linearly: speech sits in the
+    // bottom tenth of a linear meter, which reads as a broken microphone.
+    var shown = scale(rms);
+    var now = performance.now();
+
+    if (shown >= peakHold || now - peakAt > 900) {
+        peakHold = shown;
+        peakAt = now;
+    }
+
+    $('meterFill').style.width = (shown * 100).toFixed(1) + '%';
+    $('meterPeak').style.left = (peakHold * 100).toFixed(1) + '%';
+    $('meterPeak').style.opacity = peakHold > 0.02 ? '1' : '0';
+
+    if (rms >= 0.01) {
+        everHeard = true;
+    }
+
+    $('micReading').textContent = 'Level ' + Math.round(shown * 100) + '%'
+        + '   peak ' + top.toFixed(3)
+        + (everHeard ? '' : '   — nothing picked up yet');
+
+    if (everHeard && $('micChip').dataset.state !== 'ok') {
+        chip($('micChip'), 'ok', 'Microphone working');
+        verdict($('micVerdict'), 'ok',
+            '<b>Your microphone is picking up sound.</b> Record and play back below if you also '
+            + 'want to hear how it sounds.');
+        post({ kind: 'device-check', event: 'mic-ok', detail: 'signal detected' });
+    }
+
+    rafId = requestAnimationFrame(draw);
+}
+
+function scale(rms) {
+    if (rms <= 0) {
+        return 0;
+    }
+
+    var db = 20 * Math.log10(rms);
+    return Math.max(0, Math.min(1, (db + 60) / 60));
+}
+
+// ---- record and play back --------------------------------------------------------------------
+
+function record() {
+    if (!stream) {
+        return;
+    }
+
+    var chunks = [];
+
+    try {
+        recorder = new MediaRecorder(stream);
+    } catch (e) {
+        verdict($('micVerdict'), 'warn', 'This build cannot record, so playback is unavailable. '
+            + 'The meter above still tells you whether the microphone works.');
+        return;
+    }
+
+    recorder.addEventListener('dataavailable', function (e) {
+        if (e.data && e.data.size > 0) {
+            chunks.push(e.data);
+        }
+    });
+
+    recorder.addEventListener('stop', function () {
+        if (recorded) {
+            URL.revokeObjectURL(recorded);
+        }
+
+        recorded = chunks.length ? URL.createObjectURL(new Blob(chunks)) : null;
+        $('recPlay').disabled = !recorded;
+        $('recStart').disabled = !stream;
+        $('recStart').textContent = 'Record 5 s';
+
+        if (recorded) {
+            verdict($('micVerdict'), '', 'Recorded. <b>Play it back</b> — it goes to the output '
+                + 'device selected on the right, so this tests both halves at once.');
+        }
+    });
+
+    recorder.start();
+    $('recStart').disabled = true;
+    $('recPlay').disabled = true;
+
+    var left = 5;
+    $('recStart').textContent = 'Recording… ' + left;
+
+    var tick = setInterval(function () {
+        left--;
+        $('recStart').textContent = left > 0 ? 'Recording… ' + left : 'Record 5 s';
+
+        if (left <= 0) {
+            clearInterval(tick);
+
+            try {
+                recorder.stop();
+            } catch (e) {
+                // Already stopped.
+            }
+        }
+    }, 1000);
+}
+
+async function playBack() {
+    if (!recorded) {
+        return;
+    }
+
+    var player = $('playback');
+    player.src = recorded;
+
+    await applySink(player);
+
+    try {
+        await player.play();
+        askIfHeard('That was you, played back through the selected output.');
+    } catch (e) {
+        verdict($('spkVerdict'), 'bad', '<b>Playback was refused:</b> ' + (e.name || e));
+    }
+}
+
+// ---- speakers --------------------------------------------------------------------------------
+
+async function applySink(element) {
+    var wanted = $('spkSelect').value;
+
+    if (!wanted || typeof element.setSinkId !== 'function') {
+        return;
+    }
+
+    try {
+        await element.setSinkId(wanted);
+    } catch (e) {
+        $('spkNote').textContent = 'Could not route to that output (' + (e.name || e)
+            + '), so this played on the default device instead.';
+    }
+}
+
+async function tone(channels, sweep) {
+    stopTone();
+
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    toneCtx = new Ctx();
+
+    var wanted = $('spkSelect').value;
+
+    // Chromium can point a whole AudioContext at a device. Where it cannot, the tone still plays
+    // — on the default output — which is said out loud rather than silently.
+    if (wanted && typeof toneCtx.setSinkId === 'function') {
+        try {
+            await toneCtx.setSinkId(wanted);
+            $('spkNote').textContent = '';
+        } catch (e) {
+            $('spkNote').textContent = 'Could not route to that output (' + (e.name || e)
+                + '), so this is playing on the default device.';
+        }
+    } else if (wanted) {
+        $('spkNote').textContent = 'This build cannot choose an output for tones, so this is '
+            + 'playing on the default device.';
+    } else {
+        $('spkNote').textContent = '';
+    }
+
+    try {
+        if (toneCtx.state === 'suspended') {
+            await toneCtx.resume();
+        }
+    } catch (e) {
+        // Carry on and see.
+    }
+
+    var gain = toneCtx.createGain();
+    var level = Number($('volume').value) / 100;
+    gain.gain.value = 0;
+
+    var merger = toneCtx.createChannelMerger(2);
+    gain.connect(merger, 0, channels === 'right' ? 1 : 0);
+
+    if (channels === 'both') {
+        gain.connect(merger, 0, 1);
+    }
+
+    merger.connect(toneCtx.destination);
+
+    var osc = toneCtx.createOscillator();
+    osc.type = 'sine';
+
+    var now = toneCtx.currentTime;
+
+    if (sweep) {
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(6000, now + 2.4);
+    } else {
+        osc.frequency.setValueAtTime(440, now);
+    }
+
+    // Ramped rather than switched: a square edge on a sine is a click, and on a headset at volume
+    // that is unpleasant enough to be its own bug report.
+    gain.gain.linearRampToValueAtTime(level, now + 0.05);
+    gain.gain.setValueAtTime(level, now + (sweep ? 2.4 : 1.1));
+    gain.gain.linearRampToValueAtTime(0, now + (sweep ? 2.6 : 1.25));
+
+    osc.connect(gain);
+    osc.start(now);
+    osc.stop(now + (sweep ? 2.7 : 1.35));
+
+    toneStop = function () {
+        try {
+            osc.stop();
+        } catch (e) {
+            // Already stopped.
+        }
+    };
+
+    osc.addEventListener('ended', function () {
+        askIfHeard(sweep
+            ? 'A sweep from low to high. Any part of it missing means the output is not clean.'
+            : 'A one-second tone at 440 Hz' + (channels === 'both' ? '.' : ', ' + channels + ' ear only.'));
+    });
+
+    post({ kind: 'device-check', event: 'tone', detail: channels + (sweep ? ' sweep' : '') });
+}
+
+function stopTone() {
+    if (toneStop) {
+        toneStop();
+        toneStop = null;
+    }
+
+    if (toneCtx) {
+        var closing = toneCtx;
+        toneCtx = null;
+        setTimeout(function () {
+            try {
+                closing.close();
+            } catch (e) {
+                // Already closed.
+            }
+        }, 300);
+    }
+}
+
+function askIfHeard(what) {
+    $('heardRow').hidden = false;
+    verdict($('spkVerdict'), '', what);
+}
+
+// ---- wiring ----------------------------------------------------------------------------------
+
+$('micStart').addEventListener('click', function () { startListening(); });
+$('micStop').addEventListener('click', stopListening);
+$('recStart').addEventListener('click', record);
+$('recPlay').addEventListener('click', function () { playBack(); });
+
+$('micSelect').addEventListener('change', function () {
+    if (stream) {
+        startListening();
+    }
+});
+
+$('toneBoth').addEventListener('click', function () { tone('both', false); });
+$('toneLeft').addEventListener('click', function () { tone('left', false); });
+$('toneRight').addEventListener('click', function () { tone('right', false); });
+$('toneSweep').addEventListener('click', function () { tone('both', true); });
+
+$('heardYes').addEventListener('click', function () {
+    chip($('spkChip'), 'ok', 'Speakers working');
+    verdict($('spkVerdict'), 'ok', '<b>Output is working.</b> Whatever Teams does next, it is not '
+        + 'the speakers.');
+    $('heardRow').hidden = true;
+    post({ kind: 'device-check', event: 'speaker-ok', detail: 'user confirmed' });
+});
+
+$('heardNo').addEventListener('click', function () {
+    chip($('spkChip'), 'bad', 'Nothing heard');
+    verdict($('spkVerdict'), 'bad',
+        '<b>Nothing came through.</b> Try another output above; check the Windows volume mixer, '
+        + 'which keeps a separate level for this app; and if you are on a remote session, check '
+        + 'that audio is set to play on this computer rather than on the remote one.');
+    $('heardRow').hidden = true;
+    post({ kind: 'device-check', event: 'speaker-failed', detail: 'user reported silence' });
+});
+
+if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', function () {
+        refreshDevices(true);
+    });
+}
+
+window.addEventListener('pagehide', function () {
+    stopListening();
+    stopTone();
+});
+
+refreshDevices(false);
+</script>
+</body>
+</html>

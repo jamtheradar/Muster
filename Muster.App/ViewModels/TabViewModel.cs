@@ -35,6 +35,19 @@ public abstract partial class TabViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsLive { get; set; }
 
+    /// <summary>
+    /// True while this tab's page is rendering audio, from WebView2's own
+    /// <c>IsDocumentPlayingAudio</c>. Nothing is injected for it and nothing is parsed.
+    /// </summary>
+    /// <remarks>
+    /// The speaker half of the device check, always on: if Teams is playing and you hear nothing,
+    /// the fault is between the browser and your ears rather than in the call. Under RDP that is
+    /// where it usually is.
+    /// </remarks>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AccessibleLabel))]
+    public partial bool IsPlayingAudio { get; set; }
+
     /// <summary>Unread count parsed from the page title. See SPEC section 7.1.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BadgeText))]
@@ -50,7 +63,13 @@ public abstract partial class TabViewModel : ObservableObject
     /// What a screen reader announces. The badge is drawn inside a control template, so without
     /// this the count is invisible to assistive tech.
     /// </summary>
-    public string AccessibleLabel => HasUnread ? $"{DisplayName}, {UnreadCount} unread" : DisplayName;
+    public string AccessibleLabel => (HasUnread, IsPlayingAudio) switch
+    {
+        (true, true) => $"{DisplayName}, {UnreadCount} unread, playing audio",
+        (true, false) => $"{DisplayName}, {UnreadCount} unread",
+        (false, true) => $"{DisplayName}, playing audio",
+        _ => DisplayName,
+    };
 
     /// <summary>Pinned services cannot be closed; they are removed by editing the config.</summary>
     public abstract bool CanClose { get; }

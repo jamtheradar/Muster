@@ -42,10 +42,19 @@ public sealed class JsonConfigStore : IConfigStore
         MusterConfig? config;
         try
         {
-            await using var stream = File.OpenRead(Path);
-            config = await JsonSerializer
-                .DeserializeAsync<MusterConfig>(stream, SerializerOptions, ct)
-                .ConfigureAwait(false);
+            // ConfigureAwait(false) on the stream itself, not only on the read: the implicit
+            // DisposeAsync is an await too, and without this it captures whatever context the
+            // caller was on. App.OnStartup blocks the UI thread on this to get the logging
+            // section before there is a logger, so a captured dispatcher there is a deadlock —
+            // and one that presents as the app starting with no window and no log at all.
+            var stream = File.OpenRead(Path);
+
+            await using (stream.ConfigureAwait(false))
+            {
+                config = await JsonSerializer
+                    .DeserializeAsync<MusterConfig>(stream, SerializerOptions, ct)
+                    .ConfigureAwait(false);
+            }
         }
         catch (JsonException ex)
         {
@@ -78,7 +87,12 @@ public sealed class JsonConfigStore : IConfigStore
         // half-written config that fails to load on next start.
         var temporary = Path + ".tmp";
 
-        await using (var stream = File.Create(temporary))
+        // Same reasoning as the read, and this is the path that actually bit: a first run has no
+        // file, so the startup read writes the defaults through here while the UI thread is
+        // blocked waiting for it. The .tmp beside the config and nothing else is the fingerprint.
+        var stream = File.Create(temporary);
+
+        await using (stream.ConfigureAwait(false))
         {
             await JsonSerializer.SerializeAsync(stream, config, SerializerOptions, ct).ConfigureAwait(false);
         }
