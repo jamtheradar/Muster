@@ -58,6 +58,16 @@ public sealed class NewWindowRequest
     /// </summary>
     public void Adopt(CoreWebView2 core) => _args.NewWindow = core;
 
+    /// <summary>
+    /// Hands the request back to WebView2, which opens it in a popup window of its own on the
+    /// opener's profile. Never the system browser: the identity stays the workspace's.
+    /// </summary>
+    /// <remarks>
+    /// Only for a window WebView2 has already refused to let us adopt. Read when the deferral
+    /// completes, so it is still ours to change until then.
+    /// </remarks>
+    public void LeaveToWebView2() => _args.Handled = false;
+
     /// <summary>Signals that routing is finished, successfully or not.</summary>
     public void Complete() => _completion.TrySetResult();
 }

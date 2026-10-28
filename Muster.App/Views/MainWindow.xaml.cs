@@ -1164,9 +1164,43 @@ public partial class MainWindow : Window
         // keeps window.opener and window.close() working.
         var session = await _sessions.CreateForAdoptionAsync(tab.Descriptor).ConfigureAwait(true);
 
-        if (session.Core is { } core)
+        if (session.Core is not { } core)
+        {
+            _viewModel.CloseTab(tab);
+            throw new InvalidOperationException($"No CoreWebView2 to adopt for {tab.Id}.");
+        }
+
+        try
         {
             request.Adopt(core);
+        }
+        catch (ArgumentException)
+        {
+            // WebView2 refuses some new windows outright, Teams' about:blank ones during a call
+            // most often. Falling through to the generic fallback used to leave this tab behind
+            // and open a second, so every refusal cost two tabs. Reuse this one instead.
+            //
+            // An about:blank has nothing to navigate to, so the tab is no use - but dropping it
+            // is worse than it looks. Teams opens it to move the call UI into, and a dropped one
+            // takes the call controls with it while the call carries on. WebView2's own popup
+            // window accepts what ours would not, on the same profile, so let it have it.
+            if (!UrlNormaliser.IsSupportedScheme(request.Target))
+            {
+                _viewModel.CloseTab(tab);
+                request.LeaveToWebView2();
+                _log.LogInformation(
+                    "Left a new window for {Uri} to WebView2 after it refused adoption " +
+                    "(user initiated {User})",
+                    request.Target,
+                    request.IsUserInitiated);
+                return;
+            }
+
+            tab.IsLive = true;
+            _viewModel.Activate(workspace, tab);
+            session.Navigate(request.Target);
+            _log.LogInformation("Opened {Uri} as a plain tab; it could not be adopted as a window", request.Target);
+            return;
         }
 
         tab.IsLive = true;
