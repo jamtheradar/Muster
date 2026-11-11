@@ -45,7 +45,7 @@ on launch and applies the update the next time you start it.
 ## Configuration
 
 Everything lives in one hand-editable file, `%APPDATA%\Muster\muster.json`, and every field in it
-is also editable from Settings. The file stays the source of record: the settings screen writes
+except a service's `launch` block is also editable from Settings. The file stays the source of record: the settings screen writes
 the same shape a person would type, through the same validator, and the app reloads the file when
 it changes on disk.
 
@@ -85,6 +85,25 @@ A few things worth knowing:
   [Presence](#presence). Turning it on changes status that real people can see.
 - **`appearance.iconSet`** is one of `slate`, `rimmed`, `inverted`, `bone`, `ochre`, `eucalypt`,
   `clay`, `hiVis`. Settings shows the artwork rather than the names.
+- **A generic service can start a local process first** and load the address it prints, for
+  tools that pick a new port and token every run. Muster stops the process when the tab closes:
+
+  ```json
+  {
+    "id": "cc-safety-net",
+    "name": "Safety Net",
+    "kind": "generic",
+    "url": "http://127.0.0.1/",
+    "launch": {
+      "command": "npx",
+      "args": ["-y", "cc-safety-net", "gui", "--no-open"],
+      "urlPattern": "policy GUI: (http\\S+)"
+    }
+  }
+  ```
+
+  The first capture group in `urlPattern` is the address, and it has to be on the same host as
+  `url`. This is a hand edit only; Settings keeps it but does not show it.
 
 Run against a throwaway config with `Muster.exe --config <path>` rather than editing the real one.
 `--verbose` turns on debug logging for the run.
@@ -114,7 +133,8 @@ through hand-written DOM-scraping recipes across three platforms. Muster avoids 
 failure by refusing the things that lead to it:
 
 - Any platform other than Windows
-- A plugin or recipe system — services are config entries, not code
+- A plugin or recipe system — services are config entries, not code. A service's `launch` block
+  is the one bounded exception: a single process, owned by that tab, and nothing triggered
 - Per-service DOM scraping for anything other than Teams
 - Browser furniture: history, bookmarks, downloads, extensions
 - Telemetry, crash reporting, sync

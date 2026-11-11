@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Muster.Core.Hosting;
 using Muster.Core.Services;
 
 namespace Muster.Core.Config;
@@ -234,6 +235,11 @@ public static partial class ConfigValidator
             yield return $"{where}: profileName '{profile}' is not a valid profile name.";
         }
 
+        foreach (var problem in ValidateLaunch(where, service))
+        {
+            yield return problem;
+        }
+
         if (service.Presence is not { } presence)
         {
             yield break;
@@ -267,6 +273,81 @@ public static partial class ConfigValidator
             if (string.IsNullOrWhiteSpace(presence.TenantId))
             {
                 yield return $"{where}: presence.tenantId is required for the graph strategy.";
+            }
+        }
+    }
+
+    /// <summary>
+    /// A launch block that cannot work is caught here rather than in the tab, because the tab's
+    /// version of the failure is a timeout a minute later with a process possibly left behind.
+    /// </summary>
+    private static IEnumerable<string> ValidateLaunch(string where, ServiceConfig service)
+    {
+        if (service.Launch is not { } launch)
+        {
+            yield break;
+        }
+
+        // A Teams tab is a signed-in tenant with presence riding on it. Nothing about that is
+        // served by a local process, and letting the two mix would put a launched page in front of
+        // the one session whose traffic the presence strategy reads.
+        if (service.Kind == ServiceKind.Teams)
+        {
+            yield return $"{where}: launch applies to generic services only.";
+        }
+
+        if (string.IsNullOrWhiteSpace(launch.Command))
+        {
+            yield return $"{where}: launch.command is required.";
+        }
+
+        if (string.IsNullOrWhiteSpace(launch.UrlPattern))
+        {
+            yield return $"{where}: launch.urlPattern is required.";
+        }
+        else
+        {
+            Regex? pattern = null;
+            string? error = null;
+            try
+            {
+                pattern = LaunchAddress.Compile(launch.UrlPattern);
+            }
+            catch (ArgumentException ex)
+            {
+                error = ex.Message;
+            }
+
+            if (pattern is null)
+            {
+                yield return $"{where}: launch.urlPattern is not a valid regular expression: {error}";
+            }
+            else if (pattern.GetGroupNumbers().Length < 2)
+            {
+                yield return $"{where}: launch.urlPattern needs a capture group around the address, e.g. 'listening on (http\\S+)'.";
+            }
+        }
+
+        if (launch.TimeoutSeconds is < 1 or > ServiceLaunchConfig.MaxTimeoutSeconds)
+        {
+            yield return $"{where}: launch.timeoutSeconds must be between 1 and {ServiceLaunchConfig.MaxTimeoutSeconds}.";
+        }
+
+        if (launch.WorkingDirectory is { } directory)
+        {
+            var qualified = false;
+            try
+            {
+                qualified = Path.IsPathFullyQualified(directory);
+            }
+            catch (ArgumentException)
+            {
+                // Invalid characters, reported below as not fully qualified.
+            }
+
+            if (!qualified)
+            {
+                yield return $"{where}: launch.workingDirectory '{directory}' must be an absolute path.";
             }
         }
     }

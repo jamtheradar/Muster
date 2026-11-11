@@ -36,9 +36,16 @@ public sealed class HostedSession : IHostedSession, IDisposable
         _diagnostics = diagnostics;
         _log = loggerFactory.CreateLogger($"Session:{descriptor.Id}");
         View = new WebView2 { DefaultBackgroundColor = System.Drawing.Color.White };
+        Home = descriptor.Home;
     }
 
     public SessionDescriptor Descriptor { get; }
+
+    /// <summary>
+    /// Where <see cref="GoHome"/> goes. The configured URL, except for a launched service, whose
+    /// real address is only known once its process reports it.
+    /// </summary>
+    public Uri Home { get; private set; }
 
     public WebView2 View { get; }
 
@@ -169,7 +176,7 @@ public sealed class HostedSession : IHostedSession, IDisposable
 
         if (navigateHome)
         {
-            core.Navigate(Descriptor.Home.ToString());
+            core.Navigate(Home.ToString());
         }
     }
 
@@ -242,10 +249,42 @@ public sealed class HostedSession : IHostedSession, IDisposable
     public void Reload() => Core?.Reload();
 
     /// <summary>Returns to the session's configured home URL.</summary>
-    public void GoHome() => Core?.Navigate(Descriptor.Home.ToString());
+    public void GoHome() => Core?.Navigate(Home.ToString());
 
     /// <summary>Navigates this session to <paramref name="target"/>.</summary>
     public void Navigate(Uri target) => Core?.Navigate(target.ToString());
+
+    /// <summary>Makes <paramref name="home"/> this session's home and goes there.</summary>
+    public void NavigateHome(Uri home)
+    {
+        Home = home;
+        GoHome();
+    }
+
+    /// <summary>
+    /// Shows a plain status page in place of a site, for a launched service that is still coming
+    /// up or never did. Everything is encoded: the detail carries the process's own output.
+    /// </summary>
+    public void ShowNotice(string heading, string detail, IReadOnlyList<string>? lines = null)
+    {
+        if (Core is not { } core)
+        {
+            return;
+        }
+
+        static string Encode(string? text) => System.Net.WebUtility.HtmlEncode(text) ?? string.Empty;
+        var output = lines is { Count: > 0 }
+            ? $"<pre>{Encode(string.Join('\n', lines))}</pre>"
+            : string.Empty;
+
+        core.NavigateToString(
+            "<!doctype html><meta charset=\"utf-8\"><style>" +
+            "body{font:14px 'Segoe UI',sans-serif;color:#1f2937;margin:48px;max-width:720px}" +
+            "h1{font-size:18px;font-weight:600}p{color:#4b5563}" +
+            "pre{background:#f3f4f6;padding:12px;border-radius:6px;white-space:pre-wrap;font-size:12px}" +
+            "@media (prefers-color-scheme:dark){body{background:#1f1f1f;color:#e5e7eb}p{color:#9ca3af}pre{background:#2a2a2a}}" +
+            $"</style><h1>{Encode(heading)}</h1><p>{Encode(detail)}</p>{output}");
+    }
 
     // Non-persistent notifications only. Anything a service worker raises never reaches this
     // event, which is why bridge.js shims showNotification as well.

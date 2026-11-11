@@ -4,7 +4,8 @@ namespace Muster.Core.Config;
 
 /// <summary>
 /// A pinned, persistent entry inside a workspace. Services are config, never code: there is no
-/// plugin or recipe system, and there never will be. See SPEC section 2.
+/// plugin or recipe system, and there never will be. See SPEC section 2. The one entry that runs
+/// anything is <see cref="Launch"/>, and it is bounded on purpose; see its remarks.
 /// </summary>
 public sealed record ServiceConfig
 {
@@ -28,6 +29,9 @@ public sealed record ServiceConfig
 
     /// <summary>Only meaningful when <see cref="Kind"/> is <see cref="ServiceKind.Teams"/>.</summary>
     public ServicePresenceConfig? Presence { get; init; }
+
+    /// <summary>A local process to start first, whose output names the address to load.</summary>
+    public ServiceLaunchConfig? Launch { get; init; }
 
     /// <summary>
     /// Whether notifications from this service enter the pipeline at all. Filtering happens at

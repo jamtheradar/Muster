@@ -295,6 +295,79 @@ public sealed class ConfigValidatorTests
         Assert.Equal(valid, !ConfigValidator.Validate(config).Any(p => p.StartsWith("suspension:")));
     }
 
+    [Fact]
+    public void A_well_formed_launch_block_is_accepted()
+    {
+        Assert.Empty(ConfigValidator.Validate(LaunchConfig(Launched())));
+    }
+
+    [Fact]
+    public void A_launch_pattern_without_a_capture_group_is_rejected()
+    {
+        // It would match, and then have no address to hand over. Caught here rather than as a
+        // timeout in the tab a minute later.
+        var service = Launched() with { Launch = Launched().Launch! with { UrlPattern = @"policy GUI: http\S+" } };
+
+        Assert.Contains(ConfigValidator.Validate(LaunchConfig(service)), p => p.Contains("needs a capture group"));
+    }
+
+    [Fact]
+    public void A_launch_pattern_that_is_not_a_regex_is_rejected()
+    {
+        var service = Launched() with { Launch = Launched().Launch! with { UrlPattern = "(unclosed" } };
+
+        Assert.Contains(ConfigValidator.Validate(LaunchConfig(service)), p => p.Contains("not a valid regular expression"));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(ServiceLaunchConfig.MaxTimeoutSeconds + 1)]
+    public void A_launch_timeout_out_of_range_is_rejected(int seconds)
+    {
+        var service = Launched() with { Launch = Launched().Launch! with { TimeoutSeconds = seconds } };
+
+        Assert.Contains(ConfigValidator.Validate(LaunchConfig(service)), p => p.Contains("launch.timeoutSeconds"));
+    }
+
+    [Fact]
+    public void A_launch_block_without_a_command_is_rejected()
+    {
+        var service = Launched() with { Launch = Launched().Launch! with { Command = " " } };
+
+        Assert.Contains(ConfigValidator.Validate(LaunchConfig(service)), p => p.Contains("launch.command is required"));
+    }
+
+    [Fact]
+    public void A_relative_launch_working_directory_is_rejected()
+    {
+        var service = Launched() with { Launch = Launched().Launch! with { WorkingDirectory = "tools" } };
+
+        Assert.Contains(ConfigValidator.Validate(LaunchConfig(service)), p => p.Contains("must be an absolute path"));
+    }
+
+    [Fact]
+    public void A_teams_service_cannot_launch_anything()
+    {
+        // The one session presence reads traffic from is not somewhere a local page should load.
+        var service = Launched() with { Kind = ServiceKind.Teams };
+
+        Assert.Contains(ConfigValidator.Validate(LaunchConfig(service)), p => p.Contains("launch applies to generic services only"));
+    }
+
+    private static MusterConfig LaunchConfig(ServiceConfig service)
+        => Config(new WorkspaceConfig { Id = "a", Name = "A", Services = [service] });
+
+    private static ServiceConfig Launched() => Service("gui") with
+    {
+        Url = new Uri("http://127.0.0.1/"),
+        Launch = new ServiceLaunchConfig
+        {
+            Command = "npx",
+            Args = ["-y", "cc-safety-net", "gui", "--no-open"],
+            UrlPattern = @"policy GUI: (http\S+)",
+        },
+    };
+
     /// <summary>One workspace with a fully specified graph presence account in it.</summary>
     private static MusterConfig GraphAccountConfig()
     {

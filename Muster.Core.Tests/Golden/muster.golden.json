@@ -48,6 +48,27 @@
           "presence": {
             "strategy": "none"
           }
+        },
+        {
+          "id": "policy-gui",
+          "name": "Policy",
+          "kind": "generic",
+          "url": "http://127.0.0.1/",
+          "keepAlive": false,
+          "notificationsEnabled": false,
+          "muted": true,
+          "launch": {
+            "command": "npx",
+            "args": [
+              "-y",
+              "cc-safety-net",
+              "gui",
+              "--no-open"
+            ],
+            "urlPattern": "policy GUI: (http\\S+)",
+            "workingDirectory": "D:\\Tools",
+            "timeoutSeconds": 90
+          }
         }
       ]
     }

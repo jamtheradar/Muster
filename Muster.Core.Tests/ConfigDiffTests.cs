@@ -370,7 +370,71 @@ public sealed class ConfigDiffTests
         Assert.Empty(diff.StoppedServiceIds);
     }
 
+    [Fact]
+    public void Adding_a_launch_block_rebuilds_the_session()
+    {
+        // A different process is a different session. Nothing a running one can be told to do
+        // starts a process it was not created with.
+        var before = Sample();
+        var after = WithLaunch(before, Launch());
+
+        var diff = ConfigDiff.Between(before, after);
+
+        Assert.Equal(["wiki-db"], diff.RecreatedServiceIds);
+        Assert.Empty(diff.NavigatedServiceIds);
+    }
+
+    [Fact]
+    public void Changing_a_launch_argument_rebuilds_the_session()
+    {
+        var before = WithLaunch(Sample(), Launch());
+        var after = WithLaunch(Sample(), Launch() with { Args = ["-y", "cc-safety-net@2", "gui", "--no-open"] });
+
+        var diff = ConfigDiff.Between(before, after);
+
+        Assert.Equal(["wiki-db"], diff.RecreatedServiceIds);
+    }
+
+    [Fact]
+    public void An_unchanged_launch_block_costs_nothing()
+    {
+        // Built fresh on both sides, so the args are different list instances. Records compare
+        // those by reference, and getting that wrong would restart the process on every reload.
+        var before = WithLaunch(Sample(), Launch());
+        var after = WithLaunch(Sample(), Launch());
+
+        var diff = ConfigDiff.Between(before, after);
+
+        Assert.True(diff.IsEmpty);
+        Assert.Empty(diff.StoppedServiceIds);
+    }
+
+    [Fact]
+    public void A_launched_service_whose_url_changes_is_rebuilt_not_navigated()
+    {
+        // Its real address comes from the process. Navigating to the configured one would load a
+        // bare host with no port and no token.
+        var before = WithLaunch(Sample(), Launch());
+        var after = WithService(before, 0, 1, before.Workspaces[0].Services[1] with { Url = new Uri("http://localhost/") });
+
+        var diff = ConfigDiff.Between(before, after);
+
+        Assert.Equal(["wiki-db"], diff.RecreatedServiceIds);
+        Assert.Empty(diff.NavigatedServiceIds);
+    }
+
     // ---- helpers -----------------------------------------------------------------------------
+
+    private static ServiceLaunchConfig Launch() => new()
+    {
+        Command = "npx",
+        Args = ["-y", "cc-safety-net", "gui", "--no-open"],
+        UrlPattern = @"policy GUI: (http\S+)",
+    };
+
+    /// <summary>The sample with its wiki service launched, built fresh each call.</summary>
+    private static MusterConfig WithLaunch(MusterConfig config, ServiceLaunchConfig launch)
+        => WithService(config, 0, 1, config.Workspaces[0].Services[1] with { Launch = launch });
 
     private static MusterConfig Sample() => new()
     {
