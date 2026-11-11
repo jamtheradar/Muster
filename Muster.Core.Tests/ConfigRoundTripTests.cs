@@ -113,6 +113,21 @@ public sealed class ConfigRoundTripTests
         Assert.Null(azure.Presence);
         Assert.True(teams.KeepAlive);
         Assert.False(azure.NotificationsEnabled);
+        Assert.Null(azure.Launch);
+    }
+
+    [Fact]
+    public async Task Golden_file_parses_a_launch_block()
+    {
+        var config = await LoadGoldenAsync();
+        var launch = config.Workspaces[1].Services[1].Launch;
+
+        Assert.NotNull(launch);
+        Assert.Equal("npx", launch.Command);
+        Assert.Equal(["-y", "cc-safety-net", "gui", "--no-open"], launch.Args);
+        Assert.Equal(@"policy GUI: (http\S+)", launch.UrlPattern);
+        Assert.Equal(@"D:\Tools", launch.WorkingDirectory);
+        Assert.Equal(90, launch.TimeoutSeconds);
     }
 
     [Fact]

@@ -16,6 +16,12 @@ public sealed class JsonConfigStore : IConfigStore
         WriteIndented = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+
+        // The default encoder is built for JSON embedded in HTML and escapes '+', '<', '&' and
+        // anything non-ASCII. This file is read by people, and a launch pattern of (http\S+) coming
+        // back as (http\S+) after the settings screen saves is a hand edit made unreadable.
+        // Nothing here is ever embedded in a page, which is the only case the escaping guards.
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
     public JsonConfigStore(string? path = null) => Path = path ?? DefaultPath;

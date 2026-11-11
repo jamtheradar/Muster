@@ -298,14 +298,24 @@ but branded; the executable survives rebranding but is trivially imitated, so a 
 the compromise. Matching by name at all is what Windows leaves you: the `UserChoice` hash cannot be
 verified or forged by an application.
 
-**`UserChoice` is often simply absent, and that is not an error.** Reading only
-`HKCU\...\UrlAssociations\https\UserChoice` reports "no handler" on a machine that plainly has
-a browser — this one included, where no UserChoice exists for http or https and the effective
-handler comes from the `https` class registration. So `ExternalLinkOpener` resolves the way the
-shell does: UserChoice ProgId, then that ProgId's `shell\open\command`, then
+**`UserChoice` lives under `Software\Microsoft\Windows\Shell\Associations`, not
+`...\CurrentVersion\Shell Associations`.** The second path looks just as plausible and does not
+exist. Reading it is how this note once claimed "no UserChoice exists here" on a machine whose
+UserChoice plainly named `DataByteUrlRouterURL`. Under `auto`, the wrong path meant no link
+ever left Muster from 2026-10-01 to 2026-10-20, and nothing said so: the only symptom was chat
+links opening in tabs. Newer Windows 11 builds also write `UserChoiceLatest`, which is read first.
+`UserChoice` can still be genuinely absent, so `ExternalLinkOpener` resolves the way the shell
+does: UserChoice ProgId, then that ProgId's `shell\open\command`, then
 `HKCR\https\shell\open\command`. A registry read that fails answers null rather than throwing,
 and under `auto` null means no — links stay in a tab, which is the visible, harmless direction to
-be wrong in.
+be wrong in. When external links stop working, check the Settings line that describes the
+handler before anything else: if it names Edge while URL Router is the default, the read is broken.
+
+**A refused adoption must not cost a second tab.** WebView2 sometimes rejects `e.NewWindow` with
+"Value does not fall within the expected range", and Teams' `about:blank` windows during a call
+are the usual case. `OpenEphemeralTabAsync` reuses the tab it already made and navigates it. For
+`about:blank` it closes that tab instead: the page has no handle to a window it was not given,
+so the tab would stay blank forever.
 
 **Route on the Safe Links destination, and navigate the wrapper.** Where a tenant has Defender Safe
 Links on, every link in a Teams message is rewritten to
@@ -429,6 +439,33 @@ and it hit every genuinely new install as well as the `--config <throwaway>` wor
 recommends. Fixed 2026-09-15 by binding the stream with `stream.ConfigureAwait(false)` on both
 paths.
 
+**A launched service's process belongs to its session, and to nothing else.** `SessionManager`
+owns the `ServiceLauncher` beside the `HostedSession` and stops it everywhere the session stops.
+`Process.Kill(entireProcessTree: true)` covers a normal close; the kill-on-close job object covers
+Muster dying, which would otherwise leave a server holding a port. npx is a chain — `cmd`, npm's
+node, then the package's node — and the one listening is the last, so killing only the direct
+child does nothing useful. Four more details matter:
+
+- **Output is drained for the life of the process,** not just until the address appears. A server
+  logging into a pipe nobody reads blocks when the buffer fills, minutes after the page loaded.
+- **Nothing the process writes is logged,** and the address is logged without its query. The line
+  being matched is the one carrying the access token. The tail is shown in the tab on failure,
+  which is the user's own screen, not a file they are told to share.
+- **The address must be on `url`'s host.** `url` names where the service lives; the process
+  supplies only port, path and query. Without that check a loose pattern follows the first link
+  in the output — an update notice, say — into a profile that may be signed in to something.
+- **A changed `url` on a launched service recreates rather than navigates,** because navigating
+  to the configured one would load a bare host with no port or token. `ConfigDiff` says so.
+
+It starts in `%TEMP%` unless told otherwise, because npx puts the working directory's
+`node_modules\.bin` first on PATH. The first time this was set up by hand, a stray `node` package
+in the user's home folder silently ran the GUI on Node 23, where its policy reset failed with a
+filesystem safety error that went away on Node 24.
+
+**The config writer uses relaxed JSON escaping.** The default encoder is for JSON inside HTML and
+writes `+` as `+`, so a launch pattern of `(http\S+)` came back unreadable the first time
+Settings saved. Nothing in `muster.json` is ever embedded in a page.
+
 **Never reload the config through a missing file.** `IConfigStore.LoadAsync` writes the defaults
 when the file is not there, which is right on first run and destructive during a watch: some
 editors delete and recreate rather than writing in place, and a reload landing in that gap would
@@ -467,6 +504,15 @@ one source, no channels, no background timer, no silent restart. It checks at la
 About screen asks, and applies on the next start. Do not grow it into a release-channel system
 without the same explicit decision, and do not read the exception as softening the rest of the
 list.
+
+**A service's `launch` block is the second explicit exception,** granted on 2026-10-15. It is the
+one place a config entry runs a command, and it exists for local tools that serve themselves on a
+random port with a fresh token (the cc-safety-net policy GUI was the case). It is bounded on
+purpose: one process per pinned service, started when that service's session is created, read
+until it prints its address, and killed with the session. It was asked for as "run a PowerShell
+command on workspace start" and narrowed to this deliberately. Do not grow it into hooks, events,
+workspace-level commands or anything else that runs on a trigger without the same explicit
+decision.
 
 Teams is the only service that gets bespoke logic, because it is the only one where presence sync applies. Everything else uses the generic strategy: load a URL, parse the title for a count, intercept notifications.
 

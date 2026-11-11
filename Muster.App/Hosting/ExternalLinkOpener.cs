@@ -31,8 +31,17 @@ namespace Muster.App.Hosting;
 public sealed class ExternalLinkOpener(CurrentConfig config, ILogger<ExternalLinkOpener> log)
 {
     /// <summary>Where Windows records the user's own choice of handler, as opposed to a default.</summary>
-    private const string UserChoiceKey =
-        @"Software\Microsoft\Windows\CurrentVersion\Shell Associations\UrlAssociations\https\UserChoice";
+    /// <remarks>
+    /// <c>Windows\Shell\Associations</c>, not <c>Windows\CurrentVersion\Shell Associations</c>. The
+    /// second looks just as plausible, does not exist, and reading it made every machine look as
+    /// if no choice had been made — so <c>auto</c> never once let a link out. Newer Windows 11
+    /// builds also write <c>UserChoiceLatest</c>, which wins where it is present.
+    /// </remarks>
+    private static readonly string[] UserChoiceKeys =
+    [
+        @"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoiceLatest",
+        @"Software\Microsoft\Windows\Shell\Associations\UrlAssociations\https\UserChoice",
+    ];
 
     /// <summary>Whether a link with no pinned service to go to may leave the shell right now.</summary>
     public bool IsEnabled => config.Value.Links.External switch
@@ -51,7 +60,9 @@ public sealed class ExternalLinkOpener(CurrentConfig config, ILogger<ExternalLin
     /// <see cref="OpenCommand"/> exists — the ProgId on its own would report "no idea" on a
     /// machine that plainly does have a browser.
     /// </remarks>
-    public static string? DefaultHandlerProgId => ReadValue(Registry.CurrentUser, UserChoiceKey, "ProgId");
+    public static string? DefaultHandlerProgId => UserChoiceKeys
+        .Select(key => ReadValue(Registry.CurrentUser, key, "ProgId"))
+        .FirstOrDefault(progId => !string.IsNullOrEmpty(progId));
 
     /// <summary>
     /// What Windows would actually run for an https URL, as a command line, or null if it cannot

@@ -27,6 +27,10 @@ public sealed class SessionManager(
     // Where each session's control actually lives. Almost always the shared panel, but a floating
     // session sits in its own window, and teardown has to remove it from the right parent.
     private readonly Dictionary<string, Panel> _hosts = new(StringComparer.Ordinal);
+
+    // A launched service's process lives exactly as long as its session, so it is owned here,
+    // beside the session, and stopped wherever the session is.
+    private readonly Dictionary<string, ServiceLauncher> _launchers = new(StringComparer.Ordinal);
     private readonly ILogger<SessionManager> _log = loggerFactory.CreateLogger<SessionManager>();
     private Panel? _host;
 
@@ -163,6 +167,7 @@ public sealed class SessionManager(
         Unsubscribe(session);
         HostOf(sessionId).Children.Remove(session.View);
         _hosts.Remove(sessionId);
+        StopLauncher(sessionId);
 
         if (ReferenceEquals(Active, session))
         {
@@ -232,9 +237,13 @@ public sealed class SessionManager(
 
         host.Children.Add(session.View);
 
+        // Only for a session that would have gone to its home URL. One created for adoption is
+        // somebody else's new window, and has nothing to launch.
+        var launch = navigateHome && descriptor.Launch is not null;
+
         try
         {
-            await session.InitialiseAsync(navigateHome, ct).ConfigureAwait(true);
+            await session.InitialiseAsync(navigateHome && !launch, ct).ConfigureAwait(true);
         }
         catch (Exception)
         {
@@ -258,7 +267,79 @@ public sealed class SessionManager(
             _sessions.Count);
 
         SessionStarted?.Invoke(this, descriptor);
+
+        if (launch)
+        {
+            // Not awaited. The tab exists and shows that it is starting; holding ShowAsync until a
+            // process has finished booting would leave the previous tab on screen for that long
+            // with no sign anything had been clicked.
+            _ = LaunchAsync(session);
+        }
+
         return session;
+    }
+
+    /// <summary>
+    /// Starts a launched service's process and sends its session to wherever it says it is.
+    /// Never throws: it is fire-and-forget, and every failure is reported in the tab instead.
+    /// </summary>
+    private async Task LaunchAsync(HostedSession session)
+    {
+        var descriptor = session.Descriptor;
+        var launcher = new ServiceLauncher(descriptor, _log);
+        _launchers[descriptor.Id] = launcher;
+
+        session.ShowNotice(
+            $"Starting {descriptor.Name}",
+            $"Waiting for {descriptor.Launch!.Command} to report its address.");
+
+        try
+        {
+            var address = await launcher.StartAsync().ConfigureAwait(true);
+
+            // The session may have been closed, or rebuilt by a config reload, while the process
+            // was coming up. Its replacement has a launcher of its own.
+            if (Find(descriptor.Id) is { } live && ReferenceEquals(live, session))
+            {
+                session.NavigateHome(address);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The session went away first. Its launcher has already been stopped.
+        }
+        catch (LaunchFailedException ex)
+        {
+            _log.LogWarning("Could not launch {Session}: {Reason}", descriptor.Id, ex.Message);
+            session.ShowNotice(
+                $"{descriptor.Name} did not start",
+                $"{ex.Message} Fix the launch block in muster.json and it will be retried on save.",
+                ex.Tail);
+            StopLauncher(descriptor.Id, launcher);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Launching {Session} failed unexpectedly", descriptor.Id);
+            session.ShowNotice($"{descriptor.Name} did not start", ex.Message);
+            StopLauncher(descriptor.Id, launcher);
+        }
+    }
+
+    /// <summary>
+    /// Kills a session's process. Given the launcher it expects, so a late failure from a session
+    /// that has since been rebuilt cannot stop its replacement's process.
+    /// </summary>
+    private void StopLauncher(string sessionId, ServiceLauncher? expected = null)
+    {
+        if (!_launchers.TryGetValue(sessionId, out var launcher)
+            || (expected is not null && !ReferenceEquals(launcher, expected)))
+        {
+            expected?.Dispose();
+            return;
+        }
+
+        _launchers.Remove(sessionId);
+        launcher.Dispose();
     }
 
     private void OnSessionTitleChanged(object? sender, string title)
@@ -326,6 +407,12 @@ public sealed class SessionManager(
             session.Dispose();
         }
 
+        foreach (var launcher in _launchers.Values)
+        {
+            launcher.Dispose();
+        }
+
+        _launchers.Clear();
         _sessions.Clear();
         _hosts.Clear();
         _starting.Clear();

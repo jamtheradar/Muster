@@ -28,7 +28,13 @@ public sealed partial class ServiceEditorViewModel : ObservableObject
         PresenceStrategy = service.Presence?.Strategy ?? PresenceStrategyKind.None;
         UserPrincipalName = service.Presence?.UserPrincipalName ?? string.Empty;
         TenantId = service.Presence?.TenantId ?? string.Empty;
+
+        _launch = service.Launch;
     }
+
+    // Not editable here: a command line is a hand edit by design, not a form field. It is carried
+    // through untouched so that saving anything else in the settings screen does not delete it.
+    private readonly ServiceLaunchConfig? _launch;
 
     /// <summary>A blank service, ready to be filled in. Ids must be unique across every workspace.</summary>
     public static ServiceEditorViewModel Create(string suggestedId) => new(new ServiceConfig
@@ -141,6 +147,7 @@ public sealed partial class ServiceEditorViewModel : ObservableObject
                     TenantId = Blank(TenantId),
                 }
                 : null,
+            Launch = _launch,
         };
     }
 

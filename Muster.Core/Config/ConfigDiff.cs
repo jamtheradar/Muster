@@ -148,18 +148,30 @@ public sealed record ConfigDiff
     }
 
     /// <summary>
-    /// The two things a running session cannot be talked out of, plus the workspace it belongs to.
+    /// The two things a running session cannot be talked out of, plus the workspace it belongs to,
+    /// plus anything about a launched process.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A service that moves between workspaces usually changes profile as well, so it would be
     /// caught anyway. It is listed explicitly because the case where it does not — two workspaces
     /// pinned to the same explicit <c>profileName</c> — would otherwise leave a live session
     /// carrying its old workspace id into permission checks and notification attribution.
+    /// </para>
+    /// <para>
+    /// A launched service is the other exception to "a changed URL is only a navigation". Its
+    /// address comes from the process, so navigating to the configured one would load a bare host
+    /// with no port and no token. And any change to the launch block itself means a different
+    /// process, which only a fresh session starts. Neither costs a sign-in worth keeping: what is
+    /// behind a launched service is local.
+    /// </para>
     /// </remarks>
     private static bool NeedsRecreation(SessionDescriptor was, SessionDescriptor now)
         => !string.Equals(was.ProfileName, now.ProfileName, StringComparison.Ordinal)
         || !string.Equals(was.WorkspaceId, now.WorkspaceId, StringComparison.Ordinal)
-        || !was.AllowedPermissionOrigins.SequenceEqual(now.AllowedPermissionOrigins, StringComparer.OrdinalIgnoreCase);
+        || !was.AllowedPermissionOrigins.SequenceEqual(now.AllowedPermissionOrigins, StringComparer.OrdinalIgnoreCase)
+        || !Equals(was.Launch, now.Launch)
+        || (now.Launch is not null && was.Home != now.Home);
 
     private static IReadOnlyList<string> RestartReasonsFor(MusterConfig previous, MusterConfig current)
     {

@@ -43,6 +43,12 @@ public sealed record SessionDescriptor(
     /// </summary>
     public bool IsFloating { get; init; }
 
+    /// <summary>
+    /// A process to start before the first navigation, whose output replaces <see cref="Home"/>.
+    /// Pinned services only: an ephemeral tab or a popup has no config entry to have asked for one.
+    /// </summary>
+    public ServiceLaunchConfig? Launch { get; init; }
+
     /// <summary>Builds the descriptor for a pinned service.</summary>
     public static SessionDescriptor ForService(WorkspaceConfig workspace, ServiceConfig service) => new(
         Id: service.Id,
@@ -53,6 +59,7 @@ public sealed record SessionDescriptor(
     {
         AllowedPermissionOrigins = workspace.PermissionOrigins,
         KeepAlive = service.KeepAlive,
+        Launch = service.Launch,
     };
 
     /// <summary>
